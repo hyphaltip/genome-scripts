@@ -1,0 +1,1 @@
+update read_location set location= GeomFromText('LINESTRING(' || chromosome_id || ' ' || startmatch || ',' || chromosome_id || ' ' || endmatch || ')');

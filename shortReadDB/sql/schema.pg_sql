@@ -1,0 +1,132 @@
+-- MySQL dump 10.11
+--
+-- Host: localhost    Database: sReadDB
+-- ------------------------------------------------------
+-- Server version	5.0.48-log
+
+
+
+DROP TABLE read_location;
+DROP TABLE read_info;
+DROP TABLE feature;
+DROP TABLE project;
+DROP TABLE chromosome;
+DROP TABLE analysis_method;
+
+
+--
+-- Table structure for table "analysis_method"
+--
+
+CREATE TABLE analysis_method (
+  method_id SERIAL PRIMARY KEY,
+  program varchar(64) NOT NULL,
+  program_params varchar(255) NOT NULL default ''
+);
+CREATE UNIQUE INDEX ui_am_prog ON analysis_method (program,program_params);
+--
+-- Table structure for table "chromosome"
+--
+
+CREATE TABLE chromosome (
+  chromosome_id SERIAL PRIMARY KEY,
+  organism varchar(255) NOT NULL,
+  name varchar(64) NOT NULL,
+  length integer NOT NULL,
+  description varchar(255) default NULL
+);
+CREATE UNIQUE INDEX ui_chrom_name_organism ON chromosome (organism,name);
+CREATE INDEX i_chrom_length ON chromosome (length);
+
+--
+-- Table structure for table feature
+--
+
+CREATE TABLE feature (
+  feature_id SERIAL PRIMARY KEY,
+  chromosome_id integer NOT NULL REFERENCES chromosome (chromosome_id),
+  fid varchar(128) NOT NULL,
+  fname varchar(128) default NULL,
+  fparent varchar(128) default NULL,
+  ftype varchar(64) NOT NULL,
+  fstart integer NOT NULL,
+  fstop integer NOT NULL,
+  fstrand boolean NOT NULL default '1',
+  fsource varchar(64) NOT NULL,
+  location GEOMETRY NULL
+);
+
+CREATE INDEX i_fchrom ON feature (chromosome_id);
+CREATE INDEX ui_fid ON feature (fid);
+CREATE INDEX i_fname ON feature (fname);
+CREATE INDEX i_ftype ON feature (ftype);
+CREATE INDEX i_fparent ON feature (fparent);
+CREATE INDEX i_fsource ON feature (fsource);
+CREATE INDEX i_fstart ON feature (fstart);
+CREATE INDEX i_fstop ON feature (fstop);
+CREATE INDEX i_fstrand ON feature (fstrand);
+CREATE INDEX i_flocation ON feature USING GIST (location);
+
+--
+-- Table structure for table project
+--
+
+CREATE TABLE project (
+  project_id SERIAL PRIMARY KEY,
+  name varchar(32) NOT NULL,
+  code varchar(32) default NULL,
+  description varchar(255) default NULL
+);
+
+CREATE UNIQUE INDEX ui_p_name ON project (name);
+CREATE UNIQUE INDEX ui_p_code ON project (code);
+CREATE INDEX i_p_desc ON project (description);
+
+--
+-- Table structure for table read_info
+--
+
+CREATE TABLE read_info (
+  read_id SERIAL PRIMARY KEY,
+  project_id integer NOT NULL REFERENCES project (project_id),
+  machid varchar(32) NOT NULL,
+  seq char(36) NOT NULL,
+  qual char(36) NOT NULL default '',
+  adaptor_trimmed boolean NOT NULL default '0',
+  trim_5 smallint NOT NULL default '-1',
+  trim_3 smallint NOT NULL default '-1'
+);
+CREATE UNIQUE INDEX ui_ri_machid ON read_info (machid,project_id);
+CREATE INDEX i_ri_project ON read_info (project_id);
+CREATE INDEX i_ri_seq ON read_info (seq);
+CREATE INDEX i_ri_trimmed ON read_info (adaptor_trimmed);
+CREATE INDEX i_ri_trim3 ON read_info (trim_3);
+CREATE INDEX i_ri_trim5 ON read_info (trim_5);
+
+--
+-- Table structure for table read_location
+--
+
+CREATE TABLE read_location (
+  read_location_id SERIAL PRIMARY KEY,
+  method_id integer  NOT NULL REFERENCES analysis_method (method_id),
+  chromosome_id integer  NOT NULL REFERENCES chromosome (chromosome_id),
+  read_id integer  NOT NULL REFERENCES read_info (read_id),
+  startmatch integer  NOT NULL,
+  endmatch integer  NOT NULL,
+  strand boolean NOT NULL default '1',
+  score numeric(3)  NOT NULL default '0',
+  mismatches numeric(3)  NOT NULL default '0',
+  quality numeric(3)  NOT NULL default '0',
+  location GEOMETRY NULL
+);
+
+CREATE INDEX i_rl_read ON read_location (read_id);
+CREATE INDEX i_rl_method ON read_location (method_id);
+CREATE INDEX i_rl_chrom ON read_location (chromosome_id);
+CREATE INDEX i_rl_loc ON read_location (startmatch,endmatch);
+CREATE INDEX i_rl_strand ON read_location (strand);
+CREATE INDEX i_rl_score ON read_location (score);
+CREATE INDEX i_rl_mm ON read_location (mismatches);
+CREATE INDEX i_rl_qual ON read_location (quality);
+CREATE INDEX i_rl_location ON read_location USING GIST (location);

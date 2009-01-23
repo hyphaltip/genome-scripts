@@ -1,0 +1,9 @@
+CREATE INDEX i_rl_read ON read_location (read_id);
+CREATE INDEX i_rl_method ON read_location (method_id);
+CREATE INDEX i_rl_chrom ON read_location (chromosome_id);
+CREATE INDEX i_rl_loc ON read_location (startmatch,endmatch);
+CREATE INDEX i_rl_strand ON read_location (strand);
+CREATE INDEX i_rl_score ON read_location (score);
+CREATE INDEX i_rl_mm ON read_location (mismatches);
+CREATE INDEX i_rl_qual ON read_location (quality);
+CREATE INDEX i_rl_location ON read_location USING GIST (location);
