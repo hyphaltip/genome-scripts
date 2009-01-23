@@ -1,2 +1,0 @@
-psql -f /usr/share/pgsql/contrib/lwpostgis-64.sql -d sReadDB
-
