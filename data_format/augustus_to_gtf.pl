@@ -26,7 +26,7 @@ while(<>) {
 		    sort { $a->[1] <=> $b->[1] }
 		    map { [$_, $_->[3] * ($_->[6] eq '+' ? 1 : -1)] }
 		    @exons ) {
-	    $l->[-1] = sprintf("exontype \"%s\" %s", $exontype,$l->[-1]);
+	    $l->[-1] = sprintf("exontype \"%s\"; %s", $exontype,$l->[-1]);
 	    print join("\t", @$l),"\n";
 	    $l->[2] = 'exon';
 	    print join("\t", @$l),"\n";
