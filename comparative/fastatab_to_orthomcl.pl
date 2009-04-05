@@ -12,7 +12,8 @@ fastatab_to_orthomcl  - turn FASTA tabular output into OrthoMCL BPO file
 =head1 DESCRIPTION
 
 Comand line options:
-  -s/--score    evalue|bit|bpr -- report E-value, bitscore, or bits per residue
+  -s/--score    scaled|evalue|bit|bpr -- report scaled E-value,E-value, bitscore, or bits per residue
+  -d/--dbsize             -- database size for scaling the E-value (default is 50,000)
   -o/--out                -- optional outputfile to write data, 
                              otherwise will write to STDOUT
   -h/--help               -- show this documentation
@@ -30,11 +31,11 @@ The expected input is tabular columns with the standard NCBI -m9 columns.
  hit start (if on rev-strand start > end)
  hit end 
  evalue
- bit score
+ fasta score
 
 Plus the additional columns
  UNDEF
- fasta score
+ bit score
  sw-score
  percent similar
  query length
