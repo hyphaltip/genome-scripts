@@ -7,8 +7,7 @@ fastatab_to_orthomcl  - turn FASTA tabular output into OrthoMCL BPO file
 
 =head1 SYNOPSIS
 
- fastatab_to_orthomcl --score evalue|bit|bpr [-o outfile] inputfile1 inputfile2 ... 
-
+ fastatab_to_orthomcl --score scaled|evalue|bit|bpr --dbsize 200000 -o outfile -i inputfile1 ... 
 =head1 DESCRIPTION
 
 Comand line options:
@@ -77,7 +76,7 @@ open(my $ggfh,  ">$outfile.gg")  || die("$outfile.gg : $!");
 
 my @data;
 my $i = 0;
-my $commit_interval = 50_000;
+my $commit_interval = 200_000;
 my (undef,undef,$base) = File::Spec->splitpath($outfile);
 my $dbh;
 my $dbargs = { AutoCommit => 0,
@@ -139,7 +138,7 @@ EOF
 
 	$dbh->commit if ($i++ % $commit_interval) == 0;
 	last if $i > 1000 && $debug;
-    }    
+    }
     $dbh->commit;
     $i_sth->finish;
     $dbh->do("CREATE INDEX i_score ON pair (bitscore)");
@@ -168,8 +167,9 @@ while( $q_sth->fetch ) {
 	$score_value = $bitscore / abs($qend - $qstart);
     } elsif( $score =~ /bit/i ) {
 	$score_value = $bitscore;
-    } elsif( $score =~ /scaled|evaluescaled|escaled/i ) {
+    } elsif( $score =~ /scaled|evaluescaled|escaled/i ) {	
 	$score_value = sprintf("%.2g",$dbsize * $qlength * 1 / 2**($bitscore));
+	$score_value = '0' if $score_value eq '0e0';
     } else {
 	warn("unknown status\n");
     }
