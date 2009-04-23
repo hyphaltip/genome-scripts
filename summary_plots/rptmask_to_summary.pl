@@ -3,8 +3,7 @@
 use strict;
 
 
-print join("\t",qw(#chrom
-		   start stop class)),"\n";
+print join("\t",'#chrom', qw(start stop class)),"\n";
 while(<>) {
     next if( /^(\s+SW|score)/ || /^\s+$/);
     my ($swscore,$perdiv,$perdel,$perins,

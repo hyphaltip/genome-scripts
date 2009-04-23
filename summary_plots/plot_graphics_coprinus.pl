@@ -5,139 +5,123 @@ use strict;
 use File::Spec;
 use Bio::SeqIO;
 use List::Util qw(sum max);
+use Cwd;
+use Getopt::Long;
 use GD qw(gdGiantFont gdLargeFont gdMediumBoldFont gdSmallFont gdTinyFont);
 use SVG;
 
 # SHOULD WE GENERATE THE PLOT WITH GD OR SVG?
 # This should just be a command line parameter
-my $GD  = 1;
-my $SVG = 0;
+my $GD  = 0;
+my $SVG = 1;
+
+mkdir("png") unless -d "png";
+mkdir("svg") unless -d "svg";
 
 use constant TICK_SCALE => 1_000_000; # draw tickmark every 1M bp
+
+my $DIR = 'plot';
+my $dbfile;
+
+GetOptions(
+	   'd|dbfile:s' => \$dbfile,
+	   'dir:s'      => \$DIR,
+	   );
+
+if( ! $dbfile ) {
+    $dbfile = File::Spec->catfile($DIR, 'genome.fa');
+}
+
 
 # recalculate values from all files...
 my $USE_CACHED = 0;
 
-my $DIR = '/projects/coccidiodies/variation/plot';
 
 #celegans data
 # DATA SOURCES
-use constant GENES   => 'ci_gene_summary.tab';
-#use constant GMAP    => 'gmap_vs_pmap.out';
-use constant ORTHOS  => 'orthologs.tab';
-use constant CI_ONLY  => 'ci_only.tab';
-use constant COCCI_ONLY => 'cocci_orphans.tab';
-use constant CI_ORPHANS => 'ci_orphans.tab';
-#use constant LETHALS => 'lethals-current';
-use constant KAKS    => 'kaks_pairwise.tab';
-use constant KS      => 'kaks_pairwise.tab';
-use constant KA      => 'kaks_pairwise.tab';
-use constant PI      => 'popgen_10k_window.tab';
-use constant SEGSITES => 'popgen_10k_window.tab';
-use constant TAJIMAD => 'popgen_10k_window.tab';
-use constant SNP_CI  => 'snp_ci_specific.tab';
-use constant SNP_CP  => 'snp_cp_specific.tab';
-use constant SNP_ALL => 'snp_all.tab';
-use constant SNP_DIV => 'snp_divergences.tab';
-use constant SNP_BOTH => 'snp_both_poly.tab';
+use constant GENES    => 'coprinus_gene_summary.tab';
+use constant ORTHOS   => 'coprinus_orthologs.tab';
+use constant ORPHANS  => 'coprinus_orphans.tab';
+use constant PARALOGS => 'coprinus_paralogs.tab';
+use constant SSGENES  => 'coprinus_only.tab';
+use constant P450_DOMAINS  => 'domains/p450.dat';
+use constant KINASE_DOMAINS  => 'domains/Pkinase.dat';
+use constant WD40_DOMAINS  => 'domains/WD40.dat';
 
-#use constant WABA_BLOCKS  => 'syntenic_blocks/waba-current';
-#use constant ORTHO_BLOCKS => 'syntenic_blocks/ortholog_blocks.nonoverlapping';
-#use constant ORTHO_BLOCKS => 'syntenic_blocks/raw_blocks-ortholog.txt';
-#use constant BLASTZ_BLOCKS => 'syntenic_blocks/raw_blocks-blastz-2k_dpmerged.txt';
+use constant LB_BLOCKS     => 'cc-lb_synteny.tab';
+use constant PC_BLOCKS     => 'cc-pc_synteny.tab';
 
-use constant REPEATS  => 'repeats-rptmasker_broadrpts.tab';
-#use constant PERRY   => '../repeats/perry-CeReps_CHROMOSOME_';
-#use constant CLUSTER => '../families/cluster_positions_';
-
-
+use constant REPEATS  => 'coprinus_rptmask.tab';
 
 # TRACK COLORS - COLLECT HERE FOR EASY ACCESS
-use constant BLOCKS_COLOR  => 'pink';
-use constant GENES_COLOR   => 'red';
-use constant ORTHOS_COLOR  => 'blue';
-use constant CI_ONLY_COLOR => 'blue';
-use constant CI_ORPHANS_COLOR => 'blue';
-use constant COCCI_ONLY_COLOR => 'blue';
-use constant GMAP_COLOR    => 'black';
-use constant REPEATS_COLOR => 'green';
-use constant SNP_COLOR     => 'orange';
+use constant BLOCKS_COLOR  => 'steelblue';
+use constant BLOCKS_COLOR_REV  => 'goldenrod';
+
+use constant GENES_COLOR     => 'red';
+use constant ORTHOS_COLOR    => 'blue';
+use constant PARALOGS_COLOR  => 'slateblue';
+use constant ORPHANS_COLOR   => 'rosybrown';
+use constant SSGENES_COLOR   => 'olive';
+use constant KINASE_DOMAINS_COLOR   => 'steelblue';
+use constant P450_DOMAINS_COLOR     => 'steelblue';
+use constant WD40_DOMAINS_COLOR     => 'steelblue';
+use constant REPEATS_COLOR   => 'forestgreen';
 # Font sizes...
 use constant LABEL_SIZE    => '8';
 
 # These are not being used right now
 my %labels = ( 
-	       genes           => 'C. immitis genes',
+	       genes           => 'Genes / 50 kb',
 	       gmap            => 'gmap vs pmap',
-	       orthologs       => 'orthologs / genes',
-	       ci_orphans         => 'orphans / genes',
-	       ci_only         => 'Ci only orphans / genes',
-	       cocci_only      => 'Cocci only orphans / genes',
-	       kaks            => 'average Ka/Ks',
-	       ks              => 'average Ks',
-	       ka              => 'average Ka',
-	       mercator_blocks => 'syntenic blocks',
+	       orthologs       => 'Orthologous genes/genes',
+	       orphans         => 'Orphan genes/genes/50kb',
+	       paralogs        => 'Paralogous genes/genes/50kb',
+	       ssgenes         => 'Species-specific genes/genes/50kb',
+	       mercator_blocks => 'Syntenic blocks',
 	       ortholog_blocks => 'Ortholog blocks',
-	       repeats         => 'CocciRepeats',
-	       pi              => 'pi',
-	       segsites        => 'segregating sites',
-	       tajimaD         => 'Tajima D (10kb windows) for C.posadasii SNPs',
-	       snp_ci          => 'C.immitis Polymorphic sites',
-	       snp_all         => 'All SNP sites',
-	       snp_cp          => 'C.posadasii Polymorphic sites',
-	       snp_div         => 'Fixed-Differences SNPs',
-	       snp_both        => 'Both Polymorphic SNPs /50kb',
+	       pc_blocks       => 'Pchr Mercator Syntenic blocks',
+	       lb_blocks       => 'Lbic Mercator Syntenic blocks',
+	       repeats         => 'Repetitive elements/50kb window',
+	       kinase_domains  => 'Kinase Domains/genes/50kb',
+	       p450_domains    => 'P450 Domains/genes/50kb',
+	       wd40_domains    => 'WD40 Domains/genes/50kb',
 	       );
 my %ylabels = (
-	       genes           => 'genes/50kb',
-	       orthologs       => 'orthologs/genes/50kb',
-	       ci_orphans      => 'orphans/genes/50kb',
-	       ci_only         => 'C.immitis specific/genes/50kb',
-	       cocci_only      => 'Cocci specific/genes/50kb',
-	       kaks            => 'mean Ka/Ks of ortholog pairs',
-	       ks              => 'mean Ks of ortholog pairs',
-	       ka              => 'mean Ka of ortholog pairs',
+	       genes           => 'genes',
+	       orthologs       => 'ortholog-genes',
+	       orphans         => 'orphan-genes',
+	       paralogs        => 'paralog-genes',
+	       ssgenes         => 'species-specific-genes',
 	       ortholog_blocks => 'Ortholog blocks',
-	       mercator_blocks => 'Syntenic blocks',
-	       repeats         => 'repetitive elements/50kb',
-	       pi              => 'pi ',
-	       segsites        => 'segregating sites',
-	       tajimaD         => 'Tajima D (10kb windows) for C.posadasii SNPs',
-	       snp_ci          => 'C.immitis Polymorphisms /50kb',
-	       snp_all         => 'All SNPs /50kb',
-	       snp_cp          => 'C.posadasii Polymorphisms /50kb',
-	       snp_div         => 'Fixed-Differences SNPs /50kb',
-	       snp_both        => 'Both Polymorphic SNPs /50kb',
+	       pc_blocks       => 'Pchr Syntenic blocks',
+	       lb_blocks       => 'Lbic Syntenic blocks',
+	       repeats         => 'repetitive elements-50kb',
+	       kinase_domains  => 'kinasedomains',
+	       p450_domains    => 'p450domains',
+	       wd40_domains    => 'wd40domains',
 	       );
 
 my %units = (
 	     genes           => 'genes/50kb',
 	     gmap            => 'gmap vs pmap',
 	     orthologs       => 'orthologs/genes/50kb',
-	     ci_orphans      => '"orphans"/genes/50kb',
-	     ci_only         => '"C.immitis specific"/genes/50kb',
-	     cocci_only      => '"Cocci specific"/genes/50kb',
-	     lethals         => 'lethals/genes/50kb',
-	     kaks            => 'median Ka/Ks of ortholog pairs',
-	     ks              => 'median Ks of ortholog pairs',
-	     ka              => 'median Ka of ortholog pairs',
+	     orphans         => 'orphans/genes/50kb',
+	     paralogs        => 'paralogs/genes/50kb',
+	     ssgenes         => 'species-specific/genes/50kb',
 	     ortholog_blocks => 'Ortholog blocks',
 	     mercator_blocks => 'Syntenic blocks',
+	     pc_blocks       => 'Pchr Mercator Syntenic blocks',
+	     lb_blocks       => 'Lbic Mercator Syntenic blocks',
 	     repeats         => 'repetitive elements/50kb',
-	     pi              => 'pi',
-	     segsites        => 'segregating sites',
-	     tajimaD         => 'Tajima D (10kb windows) for C.posadasii SNPs',
-	     snp_ci          => 'C.immitis Polymorphisms /50kb',
-	     snp_all         => 'All SNPs /50kb',
-	     snp_cp          => 'C.posadasii Polymorphisms /50kb',
-	     snp_div         => 'Fixed-Differences SNPs /50kb',
-	     snp_both        => 'Both Polymorphic SNPs /50kb',
+	     kinase_domains  => 'Kinase Domains',
+	     p450_domains    => 'P450 Domains',
+	     wd40_domains    => 'WD40 Domains',
 	     );
 
 # IMAGE CONSTANTS
 use constant TOP           => 35;
-use constant TRACK_HEIGHT  => 80;
-use constant TRACK_SPACE   => 40;
+use constant TRACK_HEIGHT  => 60;
+use constant TRACK_SPACE   => 30;
 use constant TOTAL_TRACKS  => 16;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
@@ -152,12 +136,11 @@ use constant WIDTH         => 1024;
 
 my %CHROMS;
 {
-    my $dbfile = '/project/coccidiodies/variation/genomes/coccidioides_immitis_rs_2/coccidioides_immitis_rs_2.fasta';
     my $in = Bio::SeqIO->new(-format => 'fasta',-file=>$dbfile);
     my $i = 0;
     while( my $seq = $in->next_seq ) {
 	my $id = $seq->display_id;
-	$id =~ s/cimm(_RS_\d+)?\.(\d+)//;
+#	$id =~ s/cimm(_RS_\d+)?\.(\d+)//;
 	$CHROMS{$id}= [$i++, $seq->length];
     }
 }
@@ -167,10 +150,10 @@ my ($largest_chrom) = sort { $b<=>$a } map {$_->[1]} values %CHROMS;  # ineffici
 my $CONFIG = {};
 
 # Create a bunch of objects containing the parsed data...
-my $ci_genes = Windows->new('genes');
-$ci_genes->parse( File::Spec->catfile($DIR,GENES),
+my $genes = Windows->new('genes');
+$genes->parse( File::Spec->catfile($DIR,GENES),
 		  qw(chrom chrom_start));
-#$ci_genes->print_info('ci_genes');
+#$genes->print_info('ci_genes');
 
 my $repeats = Windows->new('repeats');
 $repeats->parse(File::Spec->catfile($DIR,REPEATS),
@@ -179,69 +162,44 @@ $repeats->parse(File::Spec->catfile($DIR,REPEATS),
 my $orthos = Windows->new('orthologs');
 $orthos->parse(File::Spec->catfile($DIR,ORTHOS),
 	       qw(src src_start));
-$orthos->normalize($ci_genes);
+$orthos->normalize($genes);
 #$orthos->print_info('orthologs','normalized');
 
-my $ci_orphans = Windows->new('ci_orphans'); # ci orphans
-$ci_orphans->parse(File::Spec->catfile($DIR,CI_ORPHANS),
-		   qw(chrom chrom_start));
-$ci_orphans->normalize($ci_genes);
-
-my $ci_only = Windows->new('ci_only'); # ci orphans
-$ci_only->parse(File::Spec->catfile($DIR,CI_ONLY),
+my $orphans = Windows->new('orphans'); # orphans
+$orphans->parse(File::Spec->catfile($DIR,ORPHANS),
 		qw(chrom chrom_start));
-$ci_only->normalize($ci_genes);
+$orphans->normalize($genes);
 
-my $cocci_only = Windows->new('cocci_only'); # ci orphans
-$cocci_only->parse(File::Spec->catfile($DIR,COCCI_ONLY),
-		   qw(chrom chrom_start));
-$cocci_only->normalize($ci_genes);
+my $paralogs = Windows->new('paralogs'); #paralogs
+$paralogs->parse(File::Spec->catfile($DIR,PARALOGS),
+		qw(chrom chrom_start));
+$paralogs->normalize($genes);
 
-my $kaks = Windows->new('kaks');
-$kaks->parse(File::Spec->catfile($DIR,KAKS),
-	     qw(chrom start kaks));
-#$kaks->print_info('kaks','average');
+my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
+$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
+		qw(chrom chrom_start));
+$ssgenes->normalize($genes);
 
-my $ks = Windows->new('ks');
-$ks->parse(File::Spec->catfile($DIR,KS),
-	   qw(chrom start ks));
+my $kinase_domains = Windows->new('kinase_domains'); #species-specificgenes
+$kinase_domains->parse(File::Spec->catfile($DIR,KINASE_DOMAINS),
+		qw(chrom chrom_start));
+$kinase_domains->normalize($genes);
 
-my $ka = Windows->new('ka');
-$ka->parse(File::Spec->catfile($DIR,KA),
-	   qw(chrom start ka));
+my $p450_domains = Windows->new('p450_domains'); #species-specificgenes
+$p450_domains->parse(File::Spec->catfile($DIR,P450_DOMAINS),
+		qw(chrom chrom_start));
+$p450_domains->normalize($genes);
 
-if( 0 ) {
-    my $pi = Windows->new('pi');
-    $pi->parse(File::Spec->catfile($DIR,PI),
-	       qw(LINKAGE_GROUP CHROM_START pi.CP));
-    
-    my $segsites = Windows->new('segsites');
-    $segsites->parse(File::Spec->catfile($DIR,SEGSITES),
-		     qw(LINKAGE_GROUP CHROM_START seg_sites.CP));
-}
-my $tajimaD = Windows->new('tajimaD');
-$tajimaD->parse(File::Spec->catfile($DIR,TAJIMAD),
-		qw(LINKAGE_GROUP CHROM_START tajima_D.CP));
+my $wd40_domains = Windows->new('wd40_domains'); #species-specificgenes
+$wd40_domains->parse(File::Spec->catfile($DIR,WD40_DOMAINS),
+		qw(chrom chrom_start));
+$wd40_domains->normalize($genes);
 
-my $snp_ci = Windows->new('snp_ci');
-$snp_ci->parse(File::Spec->catfile($DIR,SNP_CI),
-		qw(src src_start));
+my $lb_blocks = Windows->new('lb_blocks'); # cc-lb synteny blocks
+$lb_blocks->parse_blocks(File::Spec->catfile($DIR,LB_BLOCKS));
 
-my $snp_cp = Windows->new('snp_cp');
-$snp_cp->parse(File::Spec->catfile($DIR,SNP_CP),
-		qw(src src_start));
-
-my $snp_div = Windows->new('snp_div');
-$snp_div->parse(File::Spec->catfile($DIR,SNP_DIV),
-		qw(src src_start));
-
-my $snp_all = Windows->new('snp_all');
-$snp_all->parse(File::Spec->catfile($DIR,SNP_ALL),
-		qw(src src_start));
-
-my $snp_both = Windows->new('snp_both');
-$snp_both->parse(File::Spec->catfile($DIR,SNP_BOTH),
-		qw(src src_start));
+my $pc_blocks = Windows->new('pc_blocks'); # cc-pc synteny blocks
+$pc_blocks->parse_blocks(File::Spec->catfile($DIR,PC_BLOCKS));
 
 # Just make the settings has global so I don't have to worry about
 # passing it around 'cuz that just sucks
@@ -263,29 +221,21 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 	      count  => 0,
 	      img    => $img };
 
-#  plot_blocks($waba,BLOCKS_COLOR);
-  plot('genes',$ci_genes,'total',GENES_COLOR);
+  plot_blocks($lb_blocks,BLOCKS_COLOR,BLOCKS_COLOR_REV);
+  plot_blocks($pc_blocks,BLOCKS_COLOR,BLOCKS_COLOR_REV);
   plot('repeats',$repeats,'total',REPEATS_COLOR);
+  plot('genes',$genes,'total',GENES_COLOR);
   plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
-
-  plot('ci_orphans',$ci_orphans,'normalized',CI_ORPHANS_COLOR);
-  plot('ci_only',$ci_only,'normalized',CI_ONLY_COLOR);
-  plot('cocci_only',$cocci_only,'normalized',COCCI_ONLY_COLOR);
-  plot('snp_all',$snp_all,'total',SNP_COLOR);
-  plot('snp_ci',$snp_ci,'total',SNP_COLOR);
-  plot('snp_cp',$snp_cp,'total',SNP_COLOR);
-  plot('snp_div',$snp_div,'total',SNP_COLOR);
-  plot('snp_both',$snp_both,'total',SNP_COLOR);
-
-  plot_kaks('kaks',$kaks);
-  plot_kaks('ka',$ka);
-  plot_kaks('ks',$ks);
-  plot_posneg_numeric('tajimaD',$tajimaD);
-
+  plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
+  plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
+  plot('ssgenes',$ssgenes,'normalized',SSGENES_COLOR);
+  plot('kinase_domains',$kinase_domains,'normalized',KINASE_DOMAINS_COLOR);
+  plot('p450_domains',$p450_domains,'normalized',P450_DOMAINS_COLOR);
+  plot('wd40_domains',$wd40_domains,'normalized',WD40_DOMAINS_COLOR);
 
   # Draw some header information and the xscale, which is
   # always in megabases
-  my $width   = $CHROMS{$chrom}[1];
+  my $width   = $CHROMS{$chrom}->[1];
   my $scaled = TRACK_LEFT + ($xscale * $width);
   my $height = TOTAL_TRACKS * (TRACK_HEIGHT + TRACK_SPACE) + 15;
 #  my $header = 'CHROMOSOME ' . $chrom;
@@ -302,7 +252,7 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 
     $img->string(gdMediumBoldFont,$scaled/2-(length($footer)/2),
 		 $height - (gdMediumBoldFont->height) - 2,$footer,$settings->{black});
-    open OUT,">$chrom.png";
+    open OUT,">png/$chrom.png";
     print OUT $img->png;
   } else {
     $img->text(
@@ -323,7 +273,7 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 	       id=>"Megabase pairs",
 	       x=>$scaled/2-(length($footer)/2),
 	       y=>$height)->cdata($footer);
-    open OUT,">$chrom.svg";
+    open OUT,">svg/$chrom.svg";
     my $out = $img->xmlify;
     print OUT $out;
 
@@ -358,19 +308,20 @@ sub plot {
   foreach my $bin (@$bins) {
     my $total = $obj->$flag($chrom,$bin);
     my $left  = ($bin * $xscale) + TRACK_LEFT;
-    my $right = $left;
     my $top   = $track_baseline + (TRACK_HEIGHT - ($total * $yscale));
+    my $width = 2;
+
     $top = ($top < $track_baseline) ? $track_baseline : $top;
     my $bottom = $track_baseline + TRACK_HEIGHT;
     if ($GD) {
-      $img->rectangle($left,$top,$right,$bottom,$color);
-    } else {
-      $img->rectangle(x=>$left,y=>$top,
-		      width  =>$right-1-$left,
-		      height =>$bottom-$top,
-		      id     =>"$label-$bin",
-		      stroke => $color,
-		      fill   => $color);
+      $img->rectangle($left,$top,$left+$width,$bottom,$color);
+  } else {
+	$img->rectangle(x=>$left,y=>$top,
+			width  => $width,
+			height => $bottom - $top,
+			id     =>"$label-$bin",
+			stroke => $color,
+			fill   => $color);
     }
 
     # print STDERR join("\t",$left,$top,$right,$bottom),"\n";
@@ -384,11 +335,11 @@ sub plot {
   return;
 }
 
+
 # Draw y-scale ticks...
 # This should just take a ymax, then calculate the ticks (evenly rounded) from that.
 sub draw_yticks {
-  my ($track_baseline,$yscale,$total_ticks,$ylabel,$sigfigs_count,
-      $pos_neg) = @_;
+  my ($track_baseline,$yscale,$total_ticks,$ylabel,$sigfigs_count,$pos_neg) = @_;
   my $chrom  = $CONFIG->{chrom};
   my $xscale = $CONFIG->{xscale};
   my $img    = $CONFIG->{img};
@@ -404,9 +355,10 @@ sub draw_yticks {
   my $interval = TRACK_HEIGHT / $total_ticks;
   my $sigfigs = "%.".$sigfigs_count."f";  # how many significant figs for the ylabel
                     # to avoid the ylabel from not being specific
-  if ( 0.20 >= ( $interval * $total_ticks) / $yscale ) {
-    $sigfigs = "%.2f";
-  }
+  if ( 0.9 >= ( $interval * $total_ticks) / $yscale ) {
+      $sigfigs = "%.2f";
+  } 
+  
   for (my $i=0; $i <= $total_ticks;$i++) {
     my $top = $track_baseline + TRACK_HEIGHT - ($i * $interval);
     my $label = ($i * $interval) / $yscale;
@@ -414,7 +366,7 @@ sub draw_yticks {
 #    my $formatted_label = sprintf(".1f",$label);
     my $formatted_label = sprintf($sigfigs,$label);
     $label ||= '0';
-
+    
     if ($GD) {
       $img->line($tick_left,$top,$tick_right,$top,$settings->{black});
       $img->string(gdTinyFont,
@@ -423,7 +375,7 @@ sub draw_yticks {
     } else {
       $img->line(x1 => $tick_left, y1 => $top,
 		 x2 => $tick_right,y2 => $top,
-		 id => "$ylabel-$formatted_label ytick",
+		 id => "$ylabel-$formatted_label ytick".$i,
 		 stroke => $settings->{black},
 		 fill   => $settings->{black});
 
@@ -432,7 +384,7 @@ sub draw_yticks {
 			  'font' => 'Helvetica',
 			  'font-size' => LABEL_SIZE,
 			 },
-		 id=>"$ylabel-$formatted_label",
+		 id=>"$ylabel-$formatted_label-".$i,
 		 x=>$tick_left-length($formatted_label) - 22,
 		 y=>$top+3)->cdata($formatted_label);
     }
@@ -493,7 +445,7 @@ sub plot_gmap {
   my @genes = @{$gmap->{$chrom}->{positions}};
   my @sorted = sort { $a->[1] <=> $b->[1] } @genes;
   my $features_seen;
-  foreach my $gene (@sorted) {
+  for my $gene (@sorted) {
     $features_seen++;
     my $gmap = $gene->[0] - $min;  # Set the mimumum gmap value to 0
     my $pmap = $gene->[1];
@@ -624,7 +576,7 @@ sub plot_posneg_numeric {
     my $already_plotted;
     if ( ! $already_plotted) {
 	# This plots a seperate point for every ortholog pair
-	foreach my $point (@{$obj->{nonsliding}->{$chrom}}) {
+	for my $point (@{$obj->{nonsliding}->{$chrom}}) {
 	    my ($pos,$val) = @{$point};
 
 	    my $left  = ($pos * $xscale) + TRACK_LEFT;
@@ -702,7 +654,7 @@ sub plot_numeric {
     my $already_plotted;
     if ( ! $already_plotted) {
 	# This plots a seperate point for every ortholog pair
-	foreach my $point (@{$obj->{nonsliding}->{$chrom}}) {
+	for my $point (@{$obj->{nonsliding}->{$chrom}}) {
 	    my ($pos,$val) = @{$point};
 
 	    my $left  = ($pos * $xscale) + TRACK_LEFT;
@@ -734,140 +686,162 @@ sub plot_numeric {
 }
 
 sub plot_kaks {
-  my ($label,$obj) = @_;
-  my $PLOT_BY = 'average';
-  my $chrom  = $CONFIG->{chrom};
-  my $xscale = $CONFIG->{xscale};
-  my $img    = $CONFIG->{img};
-  my $count  = $CONFIG->{count};
+    my ($label,$obj) = @_;
+    my $PLOT_BY = 'average';
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
 
-  my $color = $settings->{black};
-  my $black = $settings->{black};
-  # OLD approach using the max_y_averages...
-  # That is, I calculate the values on the fly
-  # my $yscale = $obj->calc_y_scale($PLOT_BY,TRACK_HEIGHT);
-  # print STDERR $yscale,"\n";
-  # Calculate my own yscale
-  my $range;
-  if ($label eq 'kaks') {
-      # If we are binning, the averages are always very, very low.
-      # set the range more appropriately
-      #$range  = 0.5;
-      #$range = 1.0;
-      #$range = 1.2;
-      $range = 2.0;
-  } elsif ($label eq 'ks') {
-      $range = 0.3;
-  } elsif ( $label eq 'ka' ) {
-      $range = 0.1;
-  } else {
-      $range = 1.0;
-  }
-
-  # The baseline for KaKs plots will be 0, centered in the middle of the plot
-  # with equidistant spacing on both sides...
-  my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
-  my $yscale = TRACK_HEIGHT / $range;
-
-  # This is the old approach - plotting averages in bins across the chromosome
-  my $already_plotted;
-  if ( ! $already_plotted) {
-    # This plots a seperate point for every ortholog pair
-    foreach my $point (@{$obj->{nonsliding}->{$chrom}}) {
-	my ($pos,$val) = @{$point};
-	#my $fpoint = sprintf($sigfigs,$val);
-
-	my $left  = ($pos * $xscale) + TRACK_LEFT;
-	my $top   = ($track_baseline + TRACK_HEIGHT) - ($val * $yscale);
-	if ( $top < $track_baseline ) {
-	    $top = $track_baseline;
-	}
-      if ($GD) {
-	  #$img->setPixel($left,$top,$color);
-	  $img->line($left,$top,$left,$track_baseline + TRACK_HEIGHT,$color);
-      } else {
-	  $img->line(x1=>$left, y1=>$top,
-		     x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
-		     id=>"$label-$point",
-		     stroke=>$color,
-		     fill=>$color);
-      }
-	# print STDERR join("\t",$left,$top),"\n";
-    }
-  }
-  # Draw a grey line at 1.0 all the way across the graph
-  # for KA/KS
-  if ($label eq 'kaks') {
-    my $width  = $CHROMS{$chrom}[1];
-    my $right  = TRACK_LEFT + ($xscale * $width) + 2;
-    my $location = ($track_baseline + TRACK_HEIGHT) - (1 * $yscale);
+    my $color = $settings->{black};
+    my $black = $settings->{black};
+    # OLD approach using the max_y_averages...
+    # That is, I calculate the values on the fly
+    # my $yscale = $obj->calc_y_scale($PLOT_BY,TRACK_HEIGHT);
+    # print STDERR $yscale,"\n";
+    # Calculate my own yscale
+    my $range;
     if ($label eq 'kaks') {
-      if ($GD) {
-	$img->line(TRACK_LEFT,$location,$right,$location,$settings->{aqua});
-      } else {
-	$img->line(x1=>TRACK_LEFT,
-		   y1=>$location,
-		   x2=>$right,
-		   y2=>$location,
-		   id=>"$label-significance divider",
-		   stroke => $settings->{aqua},
-		   fill   => $settings->{aqua});
-      }
+	# If we are binning, the averages are always very, very low.
+	# set the range more appropriately
+	#$range  = 0.5;
+	#$range = 1.0;
+	#$range = 1.2;
+	$range = 2.0;
+    } elsif ($label eq 'ks') {
+	$range = 0.3;
+    } elsif ( $label eq 'ka' ) {
+	$range = 0.1;
+    } else {
+	$range = 1.0;
     }
-  }
 
-  draw_yticks($track_baseline,
-	      $yscale,'5',$obj->{ylabel},$range < 0.5 ? "2" : '1');
-  draw_bounding($track_baseline,$obj);
-  $CONFIG->{count}++;
-  return;
+    # The baseline for KaKs plots will be 0, centered in the middle of the plot
+    # with equidistant spacing on both sides...
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
+    my $yscale = TRACK_HEIGHT / $range;
+
+    # This is the old approach - plotting averages in bins across the chromosome
+    my $already_plotted;
+    if ( ! $already_plotted) {
+	# This plots a seperate point for every ortholog pair
+	for my $point (@{$obj->{nonsliding}->{$chrom}}) {
+	    my ($pos,$val) = @{$point};
+	    #my $fpoint = sprintf($sigfigs,$val);
+
+	    my $left  = ($pos * $xscale) + TRACK_LEFT;
+	    my $top   = ($track_baseline + TRACK_HEIGHT) - ($val * $yscale);
+	    if ( $top < $track_baseline ) {
+		$top = $track_baseline;
+	    }
+	    if ($GD) {
+		#$img->setPixel($left,$top,$color);
+		$img->line($left,$top,$left,$track_baseline + TRACK_HEIGHT,$color);
+	    } else {
+		$img->line(x1=>$left, y1=>$top,
+			   x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
+			   id=>"$label-$point",
+			   stroke=>$color,
+			   fill=>$color);
+	    }
+	    # print STDERR join("\t",$left,$top),"\n";
+	}
+    }
+    # Draw a grey line at 1.0 all the way across the graph
+    # for KA/KS
+    if ($label eq 'kaks') {
+	my $width  = $CHROMS{$chrom}->[1];
+	my $right  = TRACK_LEFT + ($xscale * $width) + 2;
+	my $location = ($track_baseline + TRACK_HEIGHT) - (1 * $yscale);
+	if ($label eq 'kaks') {
+	    if ($GD) {
+		$img->line(TRACK_LEFT,$location,$right,$location,$settings->{aqua});
+	    } else {
+		$img->line(x1=>TRACK_LEFT,
+			   y1=>$location,
+			   x2=>$right,
+			   y2=>$location,
+			   id=>"$label-significance divider",
+			   stroke => $settings->{aqua},
+			   fill   => $settings->{aqua});
+	    }
+	}
+    }
+
+    draw_yticks($track_baseline,
+		$yscale,'5',$obj->{ylabel},$range < 0.5 ? "2" : '1');
+    draw_bounding($track_baseline,$obj);
+    $CONFIG->{count}++;
+    return;
 }
 
 
 sub plot_blocks {
-  my ($obj,$icolor) = @_;
-  my $color = $settings->{$icolor};
-  my $black = $settings->{black};
+    my ($obj,$icolor,$ricolor) = @_;
+    my $fcolor = $settings->{$icolor};
+    my $rcolor = $settings->{$ricolor};
+    my $black = $settings->{black};
 
-  my $chrom  = $CONFIG->{chrom};
-  my $xscale = $CONFIG->{xscale};
-  my $img    = $CONFIG->{img};
-  my $count  = $CONFIG->{count};
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
 
-  my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
-
-  my @blocks = @{$obj->{$chrom}};
-  my $total;
-  foreach my $block (@blocks) {
-    $total++;
-    my ($start,$stop) = @$block;
-    ($start,$stop) = ($stop,$start) if ($start > $stop);
-    my $left   = ($start * $xscale) + TRACK_LEFT;
-    my $right  = ($stop * $xscale) + TRACK_LEFT;
-    my $top    = $track_baseline;
-    my $bottom = $track_baseline + TRACK_HEIGHT;
-    if ($GD) {
-      $img->filledRectangle($left,$top+1,$right-1,$bottom-1,$color);
-    } else {
-      $img->rectangle(x=>$left,y=>$top,
-		      width  =>$right-1-$left,
-		      height =>$bottom-$top,
-		      id     =>"waba_blocks-$total-" . $start .'-' . $stop,
-		      stroke =>$color,
-		      fill   =>$color),
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
+    if( ! exists $obj->{$chrom} ) {
+	warn( " no chrom $chrom available\n");
     }
-    # print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
-  }
+    my @blocks = @{$obj->{$chrom} || []};
 
-  draw_bounding($track_baseline,$obj);
-  $CONFIG->{count}++;
-  return;
+    # assume that the strand is the majority of blocks 
+
+    my %majstrand;
+    { 
+	my %c;  
+	for my $block (@blocks) {	  
+	    my ($start,$end,$target,$tlength,$tstrand) = @$block;
+	    $c{$target}->{$tstrand} += $tlength;
+	}
+	while( my ($target,$pieces) = each %c ) {
+	    ($majstrand{$target}) = sort { $pieces->{$b} <=> $pieces->{$a} } keys %{$pieces};
+	}
+    }
+
+    my $total;
+    for my $block (@blocks) {
+	$total++;
+	my ($start,$stop,$target,$tlength,$tstrand) = @$block;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,
+				  $tstrand eq $majstrand{$target} ? 
+				  $fcolor : $rcolor);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  =>$right-1-$left,
+			    height =>$bottom-$top,
+			    id     =>$obj->{dumped_file}."-$total-" . $start .'-' . $stop,
+			    stroke => ($tstrand eq $majstrand{$target} ? 
+				       $fcolor : $rcolor),
+			    fill   => ($tstrand eq $majstrand{$target} ? 
+				       $fcolor : $rcolor));
+	}	 
+	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
+    }
+
+    draw_bounding($track_baseline,$obj);
+    $CONFIG->{count}++;
+    return;
 }
 
 # Draw a bounding box for this track.
 sub draw_bounding {
   my ($top,$obj,$two_pane) = @_;
-  my $track_label = $obj->{ylabel};
+  my $track_label = $obj->{label};
   my $units       = $obj->{units};
   my $chrom  = $CONFIG->{chrom};
   my $xscale = $CONFIG->{xscale};
@@ -991,22 +965,29 @@ sub establish_settings {
   my $img = shift;
   my $settings = {};
   if ($GD) {
-    # Establish some colors and dimensional values.
-    $settings = { white  => $img->colorAllocate(255,255,255),
-		  black  => $img->colorAllocate(0,0,0),
-		  purple => $img->colorAllocate(200,100,200),
-		  grey   => $img->colorAllocate(230,230,230),
-		  pink   => $img->colorAllocate(204,000,204),
-		  sea    => $img->colorAllocate(000,102,102),
-		  orange => $img->colorAllocate(255,153,000),
-		  # Good colors
-		  red    => $img->colorAllocate(255,0,0),
-		  blue   => $img->colorAllocate(000,000,255),
-		  green  => $img->colorAllocate(000,255,000),
-		  aqua   => $img->colorAllocate(000,255,204),
-		  
-		  fontwidth  => gdMediumBoldFont->width,
-		  fontheight => gdMediumBoldFont->height,
+      # Establish some colors and dimensional values.
+      $settings = { white  => $img->colorAllocate(255,255,255),
+		    black  => $img->colorAllocate(0,0,0),
+		    purple => $img->colorAllocate(75,000,130),
+		    grey   => $img->colorAllocate(230,230,230),
+		    pink   => $img->colorAllocate(204,000,204),
+		    sea    => $img->colorAllocate(000,102,102),
+		    orange => $img->colorAllocate(255,153,000),
+		    # Good colors
+		    red    => $img->colorAllocate(255,0,0),
+		    blue   => $img->colorAllocate(000,000,255),
+		    green  => $img->colorAllocate(000,255,000),
+		    aqua   => $img->colorAllocate(000,255,204),
+		    rosybrown => $img->colorAllocate(188,143,143),
+		    indianred=> $img->colorAllocate(205,92,92),
+		    brown  => $img->colorAllocate(139,69,19),
+		    olive  => $img->colorAllocate(107,142,35),
+		    steelblue => $img->colorAllocate(70,130,180),
+		    goldenrod => $img->colorAllocate(238,221,130),
+		    slateblue => $img->colorAllocate(106,90,205),
+		    forestgreen=> $img->colorAllocate(34,139,34),
+		    fontwidth  => gdMediumBoldFont->width,
+		    fontheight => gdMediumBoldFont->height,
 		};
   } else {
     $settings = { white  => 'rgb(255,255,255)',
@@ -1021,6 +1002,13 @@ sub establish_settings {
 		  blue   => 'rgb(000,000,255)',
 		  green  => 'rgb(000,255,000)',
 		  aqua   => 'rgb(000,255,204)',
+		  brown  => 'rgb(139,69,19)',
+		  olive  => 'rgb(107,142,35)',
+		  rosybrown   => 'rgb(188,143,143)',
+		  steelblue   => 'rgb(70,130,180)',
+		  goldenrod   => 'rgb(238,221,130)',
+		  slateblue   => 'rgb(106,90,205)',
+		  forestgreen => 'rgb(34,139,34)',
 		  #		  fontwidth  => gdMediumBoldFont->width,
 		  #		  fontheight => gdMediumBoldFont->height,
 		};
@@ -1034,7 +1022,7 @@ package Windows;
 use List::Util qw(sum max);
 # constants for sliding windows
 use constant WINDOW        => 50_000;
-use constant STEP          => 10_000;
+use constant STEP          => 1_000;
 
 sub new {
   my ($self,$label) = @_;
@@ -1144,8 +1132,6 @@ sub parse {
   return;
 }
 
-
-
 sub parse_blocks {
   my ($self,$file) = @_;
   print STDERR "parsing: $file ...\n";
@@ -1156,10 +1142,10 @@ sub parse_blocks {
     chomp;
     # Skip comments
     next if (/^\#/);
-    my($chrom,$start,$end,$strand,$target) = split "\t";
+    my($chrom,$start,$end,$strand,$target,$tstart,$tend,$tstrand) = split "\t";
     # Fetch the position of the bin_by and group_by
     # columns in the fields array
-    push (@{$self->{$chrom}},[$start,$end]);
+    push (@{$self->{$chrom}},[$start,$end,$target,abs($tend-$tstart),$tstrand]);
   }
   return;
 }
@@ -1192,10 +1178,10 @@ sub sliding_windows {
     my ($self,$positions) = @_;
 
     print STDERR "   binning...\n";
-    foreach my $group_value (keys %$positions) {
+    for my $group_value (keys %$positions) {
 	# Get the maximal limit (ie the highest scoring feature)
 	my @positions = sort { $a->[0] <=> $b->[0] } @{$positions->{$group_value}};
-	foreach my $temp (@positions) {
+	for my $temp (@positions) {
 	    my ($fstart,$value) = @$temp;
 	    $self->stuff($fstart,$value,$positions[-1]->[0],$group_value);
 	}
@@ -1286,7 +1272,7 @@ sub fetch_columns {
     $line =~ s/\#//g;
     my @cols = split("\t",$line);
     my $pos = 0;
-    foreach (@cols) {
+    for (@cols) {
       $cols{$_} = $pos;
       $pos++;
     }
@@ -1306,9 +1292,9 @@ sub normalize {
 
     my $max;
     print STDERR "   normalizing...\n";
-    foreach my $group ($numerator->fetch_groups()) {
+    for my $group ($numerator->fetch_groups()) {
 	my $bins = $numerator->fetch_bins($group);
-	foreach my $bin (@$bins) {
+	for my $bin (@$bins) {
 	    my $total = $numerator->total($group,$bin);
 	    my $denom_total = $denominator->total($group,$bin);
 	    my $normalized = eval { $total / $denom_total };
@@ -1361,7 +1347,7 @@ sub print_info {
   $field ||= 'total';
   my $file = $self->{dumped_file};
   open OUT,">dumped_values/$file.out";
-  foreach my $group ($self->fetch_groups()) {
+  for my $group ($self->fetch_groups()) {
 
     # Print out some header information
     print OUT "#chromosome=$group\n";
@@ -1370,7 +1356,7 @@ sub print_info {
     print OUT "#max_y_total=" . $self->{max_y_total} . "\n";
     print OUT "#max_y_normalized=" . $self->{max_y_normalized} . "\n";
     my $bins = $self->fetch_bins($group);
-    foreach my $bin (@$bins) {
+    for my $bin (@$bins) {
       my $normalized = $self->normalized($group,$bin);
       my $total = $self->$field($group,$bin);
       print OUT $group,"\t",$bin,"\t",$total,"\n";
@@ -1378,7 +1364,6 @@ sub print_info {
   }
   close OUT;
 }
-
 
 
 sub calc_y_scale {
