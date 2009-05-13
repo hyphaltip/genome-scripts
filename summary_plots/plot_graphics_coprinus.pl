@@ -1,5 +1,5 @@
 #!/usr/bin/perl -w
-# $Id: plot_graphics.pl 250 2008-12-12 22:20:20Z stajich $
+# $Id$
 
 use strict;
 use File::Spec;
@@ -7,13 +7,14 @@ use Bio::SeqIO;
 use List::Util qw(sum max);
 use Cwd;
 use Getopt::Long;
+use Bio::Root::RootI;
 use GD qw(gdGiantFont gdLargeFont gdMediumBoldFont gdSmallFont gdTinyFont);
 use SVG;
 
 # SHOULD WE GENERATE THE PLOT WITH GD OR SVG?
 # This should just be a command line parameter
 my $GD  = 0;
-my $SVG = 1;
+
 
 mkdir("png") unless -d "png";
 mkdir("svg") unless -d "svg";
@@ -52,6 +53,7 @@ use constant LB_BLOCKS     => 'cc-lb_synteny.tab';
 use constant PC_BLOCKS     => 'cc-pc_synteny.tab';
 
 use constant REPEATS  => 'coprinus_rptmask.tab';
+use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 
 # TRACK COLORS - COLLECT HERE FOR EASY ACCESS
 use constant BLOCKS_COLOR  => 'steelblue';
@@ -66,12 +68,14 @@ use constant KINASE_DOMAINS_COLOR   => 'steelblue';
 use constant P450_DOMAINS_COLOR     => 'steelblue';
 use constant WD40_DOMAINS_COLOR     => 'steelblue';
 use constant REPEATS_COLOR   => 'forestgreen';
+use constant INTERGENIC_COLOR => 'seablue';
 # Font sizes...
 use constant LABEL_SIZE    => '8';
 
 # These are not being used right now
 my %labels = ( 
 	       genes           => 'Genes / 50 kb',
+	       intergenic    => 'Intergenic distances / 50 kb',
 	       gmap            => 'gmap vs pmap',
 	       orthologs       => 'Orthologous genes/genes',
 	       orphans         => 'Orphan genes/genes/50kb',
@@ -88,6 +92,7 @@ my %labels = (
 	       );
 my %ylabels = (
 	       genes           => 'genes',
+	       intergenic    => 'intergenic',
 	       orthologs       => 'ortholog-genes',
 	       orphans         => 'orphan-genes',
 	       paralogs        => 'paralog-genes',
@@ -103,6 +108,7 @@ my %ylabels = (
 
 my %units = (
 	     genes           => 'genes/50kb',
+	     intergenic      => 'Intergenic distances/50kb',
 	     gmap            => 'gmap vs pmap',
 	     orthologs       => 'orthologs/genes/50kb',
 	     orphans         => 'orphans/genes/50kb',
@@ -120,13 +126,13 @@ my %units = (
 
 # IMAGE CONSTANTS
 use constant TOP           => 35;
-use constant TRACK_HEIGHT  => 60;
+use constant TRACK_HEIGHT  => 70;
 use constant TRACK_SPACE   => 30;
-use constant TOTAL_TRACKS  => 16;
+use constant TOTAL_TRACKS  => 13;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
 use constant TRACK_LEFT    => 40;
-use constant WIDTH         => 1024;
+use constant WIDTH         => 1600;
 
 # Values for left aligned labels
 #use constant WIDTH         => 1300;
@@ -201,6 +207,10 @@ $lb_blocks->parse_blocks(File::Spec->catfile($DIR,LB_BLOCKS));
 my $pc_blocks = Windows->new('pc_blocks'); # cc-pc synteny blocks
 $pc_blocks->parse_blocks(File::Spec->catfile($DIR,PC_BLOCKS));
 
+my $intergenic = Windows->new('intergenic'); # intergenic distances
+$intergenic->parse(File::Spec->catfile($DIR,INTERGENIC),
+		   qw(chrom chrom_start length));
+
 # Just make the settings has global so I don't have to worry about
 # passing it around 'cuz that just sucks
 my $settings;
@@ -225,6 +235,7 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
   plot_blocks($pc_blocks,BLOCKS_COLOR,BLOCKS_COLOR_REV);
   plot('repeats',$repeats,'total',REPEATS_COLOR);
   plot('genes',$genes,'total',GENES_COLOR);
+  plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR,2000);
   plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
   plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
   plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
@@ -281,7 +292,6 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
   close OUT;
 }
 
-
 sub plot {
   my ($label,$obj,$flag,$icolor,$ymax) = @_;
   my $chrom  = $CONFIG->{chrom};
@@ -291,13 +301,12 @@ sub plot {
 
   my $color = $settings->{$icolor};
   my $black = $settings->{black};
-
-  my $yscale;
+  
+  my ($yscale);
   if ($ymax) {
-    $yscale = TRACK_HEIGHT / $ymax;
+      $yscale = TRACK_HEIGHT / $ymax;
   } else {
-    $yscale = $obj->calc_y_scale($flag,TRACK_HEIGHT);
-    $ymax = $obj->{max_y_total};
+      $yscale = $obj->calc_y_scale($flag,TRACK_HEIGHT);
   }
 
   my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
@@ -326,20 +335,21 @@ sub plot {
 
     # print STDERR join("\t",$left,$top,$right,$bottom),"\n";
   }
-
   # Draw rectangles for each
-  draw_yticks($track_baseline,$yscale,'5',$obj->{ylabel});
+  draw_yticks($track_baseline,$yscale,$yscale,'5',$obj->{ylabel});
   draw_bounding($track_baseline,$obj);
 
   $CONFIG->{count}++;
   return;
 }
 
-
 # Draw y-scale ticks...
 # This should just take a ymax, then calculate the ticks (evenly rounded) from that.
 sub draw_yticks {
-  my ($track_baseline,$yscale,$total_ticks,$ylabel,$sigfigs_count,$pos_neg) = @_;
+  my ($track_baseline,$yscale_top,$yscale_bot,
+      $total_ticks,
+      $ylabel,$sigfigs_count,$pos_neg) = @_;
+  
   my $chrom  = $CONFIG->{chrom};
   my $xscale = $CONFIG->{xscale};
   my $img    = $CONFIG->{img};
@@ -355,18 +365,22 @@ sub draw_yticks {
   my $interval = TRACK_HEIGHT / $total_ticks;
   my $sigfigs = "%.".$sigfigs_count."f";  # how many significant figs for the ylabel
                     # to avoid the ylabel from not being specific
-  if ( 0.9 >= ( $interval * $total_ticks) / $yscale ) {
+  if( $yscale_top == 0 || ! defined $yscale_top ) {
+      warn("yscale top is '$yscale_top'\n");
+      warn(Bio::Root::RootI->stack_trace_dump());
+      die;
+  }
+  if ( 0.9 >= ( $interval * $total_ticks) / $yscale_top ) {
       $sigfigs = "%.2f";
   } 
   
   for (my $i=0; $i <= $total_ticks;$i++) {
     my $top = $track_baseline + TRACK_HEIGHT - ($i * $interval);
-    my $label = ($i * $interval) / $yscale;
+    my $label = ($i * $interval) / $yscale_top;
     # do some conditional aspect of formatting
 #    my $formatted_label = sprintf(".1f",$label);
     my $formatted_label = sprintf($sigfigs,$label);
     $label ||= '0';
-    
     if ($GD) {
       $img->line($tick_left,$top,$tick_right,$top,$settings->{black});
       $img->string(gdTinyFont,
@@ -392,7 +406,7 @@ sub draw_yticks {
   if( $pos_neg ) {
       for (my $i=1; $i <= $total_ticks;$i++) {
 	  my $top = $track_baseline + TRACK_HEIGHT + ($i * $interval);
-	  my $label = ($i * $interval) / $yscale;
+	  my $label = ($i * $interval) / $yscale_bot;
 	  # do some conditional aspect of formatting
 	  my $formatted_label = sprintf("-".$sigfigs,$label);
 	  $label ||= '0';
@@ -422,6 +436,148 @@ sub draw_yticks {
   }
 }
 
+sub plot_barplot {
+    my ($label,$obj,$flag,$icolor,$ymax) = @_;
+    $flag = 'value'; # hardcoded for now
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
+
+    my $PLOT_BY = 'total';
+    my $color = $settings->{$icolor};
+    my $black = $settings->{black};
+
+
+    my ($yscale);
+    if ($ymax) {
+	$yscale = TRACK_HEIGHT / $ymax;
+    } else {
+	$yscale = $obj->calc_y_scale($flag."_".$chrom,TRACK_HEIGHT);
+    }
+
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE)
+				* $count) + TRACK_SPACE / 2;
+
+    for my $point (@{$obj->{nonsliding}->{$chrom}}) {
+	my ($pos,$val) = @{$point};
+
+	my $left  = ($pos * $xscale) + TRACK_LEFT;
+	my $top   = ($track_baseline + TRACK_HEIGHT) - ($val * $yscale);
+	if ( $top < $track_baseline ) {
+	    $top = $track_baseline;
+	}
+	if ($GD) {
+	    $img->line($left,$top,$left,
+		       $track_baseline + TRACK_HEIGHT,$color);
+	    } else {
+		$img->line(x1=>$left, y1=>$top,
+			   x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
+			   id=>"$label-$pos-fwd",
+			   stroke=>$color,
+			   fill=>$color);
+	    }
+	# print STDERR join("\t",$left,$top),"\n";
+    }
+
+
+    draw_yticks($track_baseline,
+		$yscale,
+		$yscale,
+		'5',$obj->{ylabel},
+		0, # sig figures
+		0, # two panel
+		);
+
+    draw_bounding($track_baseline,$obj);
+    $CONFIG->{count}++;
+    return;
+}
+
+sub plot_double_barplot {
+    my ($label,$obj_top,$obj_bot,
+	$flag,$ifcolor,$ircolor,$ymax_top, $ymax_bot) = @_;
+    $flag = 'value'; # hardcoded for now
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
+
+    my $PLOT_BY = 'total';
+    my $fcolor = $settings->{$ifcolor};
+    my $rcolor = $settings->{$ircolor};
+    my $black = $settings->{black};
+
+
+    my ($yscale_top,$yscale_bot);
+    if ($ymax_top) {
+	$yscale_top = TRACK_HEIGHT / $ymax_top;
+    } else {
+	$yscale_top = $obj_top->calc_y_scale($flag."_".$chrom,TRACK_HEIGHT);
+    }
+    if( $ymax_bot ) {
+	$yscale_bot = TRACK_HEIGHT / $ymax_bot;
+    } else {
+	$yscale_bot = $obj_bot->calc_y_scale($flag."_".$chrom,TRACK_HEIGHT);
+    }
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE)
+				* $count) + TRACK_SPACE / 2;
+
+    my $track_bottom = $track_baseline + 2*TRACK_HEIGHT;
+
+    for my $point (@{$obj_top->{nonsliding}->{$chrom}}) {
+	my ($pos,$val) = @{$point};
+
+	my $left  = ($pos * $xscale) + TRACK_LEFT;
+	my $top   = ($track_baseline + TRACK_HEIGHT) - ($val * $yscale_top);
+	if ( $top < $track_baseline ) {
+	    $top = $track_baseline;
+	}
+	if ($GD) {
+	    $img->line($left,$top,$left,
+		       $track_baseline + TRACK_HEIGHT,$fcolor);
+	    } else {
+		$img->line(x1=>$left, y1=>$top,
+			   x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
+			   id=>"$label-$pos-fwd",
+			   stroke=>$fcolor,
+			   fill=>$fcolor);
+	    }
+	# print STDERR join("\t",$left,$top),"\n";
+    }
+
+    for my $point (@{$obj_bot->{nonsliding}->{$chrom}}) {
+	my ($pos,$val) = @{$point};
+
+	my $left  = ($pos * $xscale) + TRACK_LEFT;
+	my $top   = ($track_baseline + TRACK_HEIGHT) + ($val * $yscale_bot);
+	if( $top > $track_bottom ) {
+	    $top = $track_bottom;
+	}
+	if ($GD) {
+	    $img->line($left,$top,$left,
+		       $track_baseline + TRACK_HEIGHT,$rcolor);
+	    } else {
+		$img->line(x1=>$left, y1=>$top,
+			   x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
+			   id=>"$label-$pos-rev",
+			   stroke=>$rcolor,
+			   fill=>$rcolor);
+	    }
+	# print STDERR join("\t",$left,$top),"\n";
+    }
+    draw_yticks($track_baseline,
+		$yscale_top,
+		$yscale_bot,
+		'5',$obj_top->{ylabel},
+		0, # sig figures
+		1, # two panel
+		);
+
+    draw_bounding($track_baseline,$obj_top,1);
+    $CONFIG->{count} += 2;
+    return;
+}
 
 sub plot_gmap {
   my ($gmap) = @_;
@@ -614,7 +770,7 @@ sub plot_posneg_numeric {
 		   fill   => $settings->{grey});
     }
 
-    draw_yticks($track_baseline,$yscale,'5',$obj->{ylabel}, 
+    draw_yticks($track_baseline,$yscale,$yscale,'5',$obj->{ylabel}, 
 		1, # sig figs are 1
 		1, # two-paned pos/neg plot
 		);
@@ -675,7 +831,7 @@ sub plot_numeric {
 	}
     }
 
-    draw_yticks($track_baseline,$yscale,'5',
+    draw_yticks($track_baseline,$yscale,$yscale,'5',
 		$obj->{ylabel}, 
 		$label =~ /^pi\./ ? 2 : 1, # sig figs calculation
 		0, # single pane
@@ -684,97 +840,6 @@ sub plot_numeric {
     $CONFIG->{count}++;
     return;
 }
-
-sub plot_kaks {
-    my ($label,$obj) = @_;
-    my $PLOT_BY = 'average';
-    my $chrom  = $CONFIG->{chrom};
-    my $xscale = $CONFIG->{xscale};
-    my $img    = $CONFIG->{img};
-    my $count  = $CONFIG->{count};
-
-    my $color = $settings->{black};
-    my $black = $settings->{black};
-    # OLD approach using the max_y_averages...
-    # That is, I calculate the values on the fly
-    # my $yscale = $obj->calc_y_scale($PLOT_BY,TRACK_HEIGHT);
-    # print STDERR $yscale,"\n";
-    # Calculate my own yscale
-    my $range;
-    if ($label eq 'kaks') {
-	# If we are binning, the averages are always very, very low.
-	# set the range more appropriately
-	#$range  = 0.5;
-	#$range = 1.0;
-	#$range = 1.2;
-	$range = 2.0;
-    } elsif ($label eq 'ks') {
-	$range = 0.3;
-    } elsif ( $label eq 'ka' ) {
-	$range = 0.1;
-    } else {
-	$range = 1.0;
-    }
-
-    # The baseline for KaKs plots will be 0, centered in the middle of the plot
-    # with equidistant spacing on both sides...
-    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
-    my $yscale = TRACK_HEIGHT / $range;
-
-    # This is the old approach - plotting averages in bins across the chromosome
-    my $already_plotted;
-    if ( ! $already_plotted) {
-	# This plots a seperate point for every ortholog pair
-	for my $point (@{$obj->{nonsliding}->{$chrom}}) {
-	    my ($pos,$val) = @{$point};
-	    #my $fpoint = sprintf($sigfigs,$val);
-
-	    my $left  = ($pos * $xscale) + TRACK_LEFT;
-	    my $top   = ($track_baseline + TRACK_HEIGHT) - ($val * $yscale);
-	    if ( $top < $track_baseline ) {
-		$top = $track_baseline;
-	    }
-	    if ($GD) {
-		#$img->setPixel($left,$top,$color);
-		$img->line($left,$top,$left,$track_baseline + TRACK_HEIGHT,$color);
-	    } else {
-		$img->line(x1=>$left, y1=>$top,
-			   x2=>$left, y2=>$track_baseline + TRACK_HEIGHT,
-			   id=>"$label-$point",
-			   stroke=>$color,
-			   fill=>$color);
-	    }
-	    # print STDERR join("\t",$left,$top),"\n";
-	}
-    }
-    # Draw a grey line at 1.0 all the way across the graph
-    # for KA/KS
-    if ($label eq 'kaks') {
-	my $width  = $CHROMS{$chrom}->[1];
-	my $right  = TRACK_LEFT + ($xscale * $width) + 2;
-	my $location = ($track_baseline + TRACK_HEIGHT) - (1 * $yscale);
-	if ($label eq 'kaks') {
-	    if ($GD) {
-		$img->line(TRACK_LEFT,$location,$right,$location,$settings->{aqua});
-	    } else {
-		$img->line(x1=>TRACK_LEFT,
-			   y1=>$location,
-			   x2=>$right,
-			   y2=>$location,
-			   id=>"$label-significance divider",
-			   stroke => $settings->{aqua},
-			   fill   => $settings->{aqua});
-	    }
-	}
-    }
-
-    draw_yticks($track_baseline,
-		$yscale,'5',$obj->{ylabel},$range < 0.5 ? "2" : '1');
-    draw_bounding($track_baseline,$obj);
-    $CONFIG->{count}++;
-    return;
-}
-
 
 sub plot_blocks {
     my ($obj,$icolor,$ricolor) = @_;
@@ -973,6 +1038,11 @@ sub establish_settings {
 		    pink   => $img->colorAllocate(204,000,204),
 		    sea    => $img->colorAllocate(000,102,102),
 		    orange => $img->colorAllocate(255,153,000),
+		    darkblue => $img->colorAllocate(0,0,153),
+		    darkgreen => $img->colorAllocate(0,51,0),
+		    darkred => $img->colorAllocate(153,0,0),
+		    seablue => $img->colorAllocate(0,102,204),
+
 		    # Good colors
 		    red    => $img->colorAllocate(255,0,0),
 		    blue   => $img->colorAllocate(000,000,255),
@@ -986,6 +1056,7 @@ sub establish_settings {
 		    goldenrod => $img->colorAllocate(238,221,130),
 		    slateblue => $img->colorAllocate(106,90,205),
 		    forestgreen=> $img->colorAllocate(34,139,34),
+
 		    fontwidth  => gdMediumBoldFont->width,
 		    fontheight => gdMediumBoldFont->height,
 		};
@@ -1009,8 +1080,11 @@ sub establish_settings {
 		  goldenrod   => 'rgb(238,221,130)',
 		  slateblue   => 'rgb(106,90,205)',
 		  forestgreen => 'rgb(34,139,34)',
-		  #		  fontwidth  => gdMediumBoldFont->width,
-		  #		  fontheight => gdMediumBoldFont->height,
+		  darkblue => 'rgb(0,0,153)',
+		  darkgreen => 'rgb(0,51,0)',
+		  darkred => 'rgb(153,0,0)',
+		  seablue  => 'rgb(0,102,204)',
+
 		};
   }
   return $settings;
@@ -1062,74 +1136,56 @@ sub read_dumped_file {
 
 
 sub parse {
-  my ($self,$file,$group_by,$bin_by,$save_by) = @_;
-  my $cols = fetch_columns($file);
-  for my $col ( $group_by, $bin_by, $save_by) {
-      if( defined $col && ! exists $cols->{$bin_by}) {
-	  die("cannot find column $bin_by in $file\n");
-      }
-  }
-  warn( "parsing: $file ...\n");
-  my $positions = {};
-  if ($USE_CACHED) {
-    $self->read_dumped_file();
-    return;
-  } else {
-    open($self->{fh} => $file) or die "$! $file\n";;
-  }
-  my $fh = $self->{fh};
-  while (<$fh>) {
-    chomp;
-    # Skip comments
-    next if (/^\#/);
-    # Fetch the position of the bin_by and group_by
-    # columns in the fields array
-    my @fields    = split("\t",$_);
-    my $bin_val   = $fields[$cols->{$bin_by}];
-    my $group_val = $fields[$cols->{$group_by}];
-
-    # Is the value out of range?
-    if ($bin_val > $CHROMS{$group_val}[1]) {	
-      print STDERR "Positional value out of range for chromosome...$bin_val\t",
-	$CHROMS{$group_val}[1],"\n";
-      next;
-    }
-    # Save both the physical position to map and the value...
-    # (these may or may not be the same thing!)
-    # This is normally used for things like KaKs values, 
-    # where I am plotting values (and not just sums of occurences) 
-    # against the physical position
-    my $value = 0;
-    if( defined $save_by ) {
-	$value  = eval { $fields[$cols->{$save_by}] };
-
-	# HORRENDOUS KLUDGE!
-	# ignore ka/ks values of 0.  sumthin's wrong.
-	# Need to clip outlier values (ks > 5 and Ka > 3);
-	if ($save_by eq 'kaks' || $save_by eq 'ks' || $save_by eq 'ka') {
-	    my $kaks = $fields[$cols->{kaks}];
-	    my $ks   = $fields[$cols->{ks}];
-	    my $ka   = $fields[$cols->{ka}];
-	    next if ($ks > 1.5 || $ka > 4 );
-	    #if ($value == 0) {
-	    #	print STDERR "WARNING: Ka/Ks value out of range : $value\n";
-	    #	print STDERR "\tPositional information\t",join("\t",$bin_val,$value,$group_val),"\n";
-	    #	next;
-	    #}
-	    # Save every point - I might just want to plot the raw data itself
-	    push (@{$self->{nonsliding}->{$group_val}},[$bin_val,$value]);
-	} elsif( $save_by =~ /^(pi|seg_sites|tajima_D)/ ) {
-	    push (@{$self->{nonsliding}->{$group_val}},[$bin_val,$value]);
+    my ($self,$file,$group_by,$bin_by,$save_by) = @_;
+    my $cols = fetch_columns($file);
+    for my $col ( $group_by, $bin_by, $save_by) {
+	if( defined $col && ! exists $cols->{$bin_by}) {
+	    die("cannot find column $bin_by in $file\n");
 	}
-    }  else {
-	$value = 1;
-	# Okay, I didn't find a save_by value. Just plotting by the bin_value
     }
-    $value   ||= $bin_val;
-    push (@{$positions->{$group_val}},[$bin_val,$value]);
-  }
-  $self->sliding_windows($positions);
-  return;
+    warn( "parsing: $file ...\n");
+    my $positions = {};
+    if ($USE_CACHED) {
+	$self->read_dumped_file();
+	return;
+    } else {
+	open($self->{fh} => $file) or die "$! $file\n";;
+    }
+    my $fh = $self->{fh};
+    while (<$fh>) {
+	chomp;
+	# Skip comments
+	next if (/^\#/);
+	# Fetch the position of the bin_by and group_by
+	# columns in the fields array
+	my @fields    = split("\t",$_);
+	my $bin_val   = $fields[$cols->{$bin_by}];
+	my $group_val = $fields[$cols->{$group_by}];
+
+	# Is the value out of range?
+	if ($bin_val > $CHROMS{$group_val}[1]) {	
+	    print STDERR "Positional value out of range for chromosome...$bin_val\t",
+	    $CHROMS{$group_val}[1],"\n";
+	    next;
+	}
+	# Save both the physical position to map and the value...
+	# (these may or may not be the same thing!)
+	# This is normally used for things like KaKs values, 
+	# where I am plotting values (and not just sums of occurences) 
+	# against the physical position
+	my $value = 0;
+	if( defined $save_by ) {
+	    $value  = eval { $fields[$cols->{$save_by}] };
+	    push (@{$self->{nonsliding}->{$group_val}},[$bin_val,$value]);
+	}  else {
+	    $value = 1;
+	    # Okay, I didn't find a save_by value. Just plotting by the bin_value
+	}
+	$value   ||= $bin_val;
+	push (@{$positions->{$group_val}},[$bin_val,$value]);
+    }
+    $self->sliding_windows($positions);
+    return;
 }
 
 sub parse_blocks {
@@ -1227,40 +1283,41 @@ sub stuff {
     for (my $i=$start;$i<=$stop;$i+=1) {
 	my $bin = $i * STEP;
 	push (@{$self->{groups}->{$key}->{$bin}->{values}},$value);
-#    print STDERR "\t",$i,"\t",$bin,"\t",$value,,"\t",$fstart,"\n";
+#	print STDERR "\t",$i,"\t",$bin,"\t",$value,,"\t",$fstart,"\n";
     }
     return;
 }
-
 
 # Calculate an average for each bin or a total value.
 sub calc_averages {
     my $self = shift;
     warn("   calculating average...\n");
-    my ($max_average,$max_total);
+    my ($max_average,$max_total,$max_value_all) = (0,0,0);
+    
+    # maybe should also calculate 1SD to help in setting an upper limit cutoff?
     for my $group_by ($self->fetch_groups()) {	
+	warn("group is empty") unless defined $group_by;
 	my $bins = $self->fetch_bins($group_by);
+	my $max_value = 0;
 	for my $bin (@$bins) {
 	    my $all = $self->fetch_values($group_by,$bin);
+
 	    my $sum = &sum (@$all);
 	    my $avg = $sum / scalar @$all;
-# print STDERR $bin,"\t",$group_by,"\t",$sum,"\t",scalar @$all,"\t",$avg,"\n";
-#	    warn( $self->{label}, " AVERAGE > 1000\n",join("\t\n",@$all),"\n") if $avg > 1000;
-	    $self->{ max_y_average} = (! defined $self->{max_y_average} || 
-				       $avg > $self->{max_y_average}) ? 
-		$avg : $self->{max_y_average};
-	    $max_total   = (! defined $max_total || 
-			    scalar @$all > $max_total) ? scalar @$all : 
-			    $max_total;
-
 	    $self->{groups}->{$group_by}->{$bin}->{average} = $avg;
 	    $self->{groups}->{$group_by}->{$bin}->{total} = scalar @$all;
-
-	    $self->{max_y_total}   = $max_total;
+	    
+	    $max_value = max(@$all, $max_value);
+	    $max_total   = max( scalar @$all, $max_total);
+	    $max_average = max($avg,$max_average);
 	}
+	$self->{'max_y_value_'.$group_by}   = $max_value;
+	$max_value_all = max($max_value, $max_value_all);
     }
+    $self->{'max_y_total'} = $max_total || 1;
+    $self->{'max_y_value'} = $max_value_all || 1;
+    $self->{'max_y_average'} = $max_average || 1;
 }
-
 
 sub fetch_columns {
   my $file = shift;
@@ -1282,7 +1339,6 @@ sub fetch_columns {
 }
 
 
-
 # Normalization
 sub normalize {
     my ($numerator,$denominator) = @_;
@@ -1299,15 +1355,13 @@ sub normalize {
 	    my $denom_total = $denominator->total($group,$bin);
 	    my $normalized = eval { $total / $denom_total };
 	    $normalized ||= '0';
-
-	    $max = (! defined $max || 
-		    $normalized > $max) ? $normalized : $max;
+	    $max ||= $normalized;
+	    $max = max($normalized,$max);
 	    $numerator->{groups}->{$group}->{$bin}->{normalized} = $normalized;
-	    $numerator->{max_y_normalized} = $max;
 	}
     }
+    $numerator->{max_y_normalized} = $max;
 }
-
 
 # Data access methods
 sub fetch_groups {  return keys %{shift->{groups}}; }
@@ -1369,8 +1423,9 @@ sub print_info {
 sub calc_y_scale {
   my ($self,$tag,$height) = @_;
   my $max = $self->{'max_y_' . $tag};
-  my $scale = $height / $max;
-  return $scale;
+  unless( defined $max ) { warn("no max for ".'max_y_' . $tag."\n") }
+  return 1 unless $max;
+  return $height / $max;
 }
 
 
