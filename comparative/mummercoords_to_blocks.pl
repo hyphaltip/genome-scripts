@@ -6,13 +6,17 @@ use Bio::PrimarySeq;
 use Getopt::Long;
 
 my ($query,$ref,$output,$infile);
+my $querypref = 'Ntet';
+my $refpref   = 'Ncra';
 my $debug = 0;
 GetOptions(
-	   'v|verbose!'   => \$debug,
-	   'q|query:s'    => \$query,
-	   'r|ref:s'      => \$ref,
-	   'o|output:s'   => \$output,
-	   'i|in|input:s' => \$infile,
+	   'v|verbose!'     => \$debug,
+	   'q|query:s'      => \$query,
+	   'r|ref:s'        => \$ref,
+	   'qp|querypref:s' => \$querypref,
+	   'rp|refpref:s'   => \$refpref,
+	   'o|output:s'     => \$output,
+	   'i|in|input:s'   => \$infile,
 	   );
 
 $infile ||= shift @ARGV;
@@ -46,17 +50,24 @@ while(<$fh>) {
 	mkdir("$output/$block") unless -d "$output/$block";
 	my $out_query = Bio::SeqIO->new(-format => 'fasta',
 					-file   => ">$output/$block/query.fa");
-	$out_query->write_seq(Bio::PrimarySeq->new
-			      (-id => sprintf("%s_%d-%d",$qname,$qstart,$qend),
-			       -seq => $qdb->seq($qname,$qstart => $qend),
-			       ));
+	my $qseq_obj = Bio::PrimarySeq->new
+	    (-desc => sprintf("%s_%d-%d",$qname,$qstart,$qend),
+	     -id   => $querypref,
+	     -seq  => $qdb->seq($qname,$qstart => $qend),
+	     );
+	$out_query->write_seq($qseq_obj);
 	
 	my $out_ref = Bio::SeqIO->new(-format => 'fasta',
 				      -file   => ">$output/$block/ref.fa");
-	$out_ref->write_seq(Bio::PrimarySeq->new
-			      (-id => sprintf("%s_%d-%d",$refname,$refstart,$refend),
-			       -seq => $rdb->seq($refname,$refstart => $refend),
-			       ));
+	my $rseq_obj = Bio::PrimarySeq->new
+	    (-desc => sprintf("%s_%d-%d",$refname,$refstart,$refend),
+	     -id   => $refpref,
+	     -seq => $rdb->seq($refname,$refstart => $refend),
+	     );
+	$out_ref->write_seq($rseq_obj);
+	my $out_seqs = Bio::SeqIO->new(-format => 'fasta',
+				       -file   => ">$output/$block/seqs.fasta");
+	$out_seqs->write_seq($rseq_obj,$qseq_obj);
 	print join(",", $block,$qname,$qstart,$qend,$refname,$refstart,$refend),"\n";
 	$block++;
     }
