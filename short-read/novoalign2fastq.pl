@@ -1,9 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
 use Getopt::Long;
-my $code = '200M6AAXX_4_R';
 
-GetOptions('c|code:s' => \$code);
 while(<>) {
     next if /^\#/;
     chomp;
@@ -12,5 +10,5 @@ while(<>) {
     $id =~ s/>//;
     my $len = length($seq);
     
-    print join("\n",'@'.$code.$id,$seq,"+",substr($qual,0,$len)),"\n";
+    print join("\n",$id,$seq,"+",substr($qual,0,$len)),"\n";
 }
