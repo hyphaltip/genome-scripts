@@ -47,18 +47,19 @@ for my $chrom ( sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 		   $segment->features('gene') ) {
 	if( ! $lastgene ) {
 	    if( $gene->start > 1 ) {
-		print $interfh join("\t", $gene->seq_id,
-				    1,$gene->start-1,
-				    $gene->start-1,
-				    'CHROM_START','+1', 
-				    $gene->id, 
-				    $gene->strand > 0 ? "+1" : "-1" ),"\n";
+#		print $interfh join("\t", $gene->seq_id,
+#				    1,$gene->start-1,
+#				    $gene->start-1,
+#				    'CHROM_START','+1', 
+#				    $gene->id, 
+#				    $gene->strand > 0 ? "+1" : "-1" ),"\n";
 	    }
 	} else {
+	    my $distance = $gene->start-1 - $lastgene->end;
 	    print $interfh join
 		("\t", $gene->seq_id,
 		 $lastgene->end+1,$gene->start-1,
-		 ($gene->start-1 - $lastgene->end),
+		 $distance,
 		 $lastgene->id,$lastgene->strand > 0 ? "+1" : "-1",
 		 $gene->id,$gene->strand > 0 ? "+1" : "-1" ),"\n";
 	}

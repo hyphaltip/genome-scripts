@@ -10,7 +10,6 @@ use constant GENES    => 'coprinus_gene_summary.tab';
 use constant ORTHOS   => 'coprinus_orthologs.tab';
 use constant ORPHANS  => 'coprinus_orphans.tab';
 use constant PARALOGS => 'coprinus_paralogs.tab';
-use constant SSGENES  => 'coprinus_only.tab';
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 use constant HAPLOTYPES => 'haplotype_blocks.csv';
@@ -58,9 +57,9 @@ $paralogs->parse(File::Spec->catfile($DIR,PARALOGS),
 		 qw(chrom chrom_start));
 #$paralogs->normalize($genes);
 
-my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
-$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
-		qw(chrom chrom_start));
+#my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
+#$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
+#		qw(chrom chrom_start));
 #$ssgenes->normalize($genes);
 
 my %dat = ( 'genes'   => $genes,
@@ -68,7 +67,7 @@ my %dat = ( 'genes'   => $genes,
 	    'paralogs' => $paralogs,
 	    'orthologs'=> $orthos,
 	    'orphans'  => $orphans,
-	    'species_specific' => $ssgenes,
+	    #'species_specific' => $ssgenes,
 	    );
 
 open(my $blocks => (File::Spec->catfile($DIR,HAPLOTYPES))) || die $!;
@@ -80,10 +79,10 @@ while(<$blocks>) {
 }
 for my $dat ( keys %dat ) {
     open(my $hotfh => ">$odir/$dat\_hot.dat") || die $!;
-    print $hotfh join("\t",qw(TOTAL)),"\n";
+    print $hotfh join("\t",qw(CHROM BIN TOTAL)),"\n";
 
     open(my $coldfh => ">$odir/$dat\_cold.dat") || die $!;
-    print $coldfh join("\t",qw(TOTAL)),"\n";
+    print $coldfh join("\t",qw(CHROM BIN TOTAL)),"\n";
     
     for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
 		   keys %CHROMS) {
@@ -107,6 +106,7 @@ for my $dat ( keys %dat ) {
     printf R "%shot <- read.table(\"%s_hot.dat\",header=T)\n",$dat,$dat;
     printf R "pdf(\"coldhot_%s.pdf\")\n",$dat;
     printf R "boxplot(%scold\$TOTAL,%shot\$TOTAL,main=\"%s Cold-Hot Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\"))\n",$dat,$dat,$dat;
+    printf R "ks.test(%scold\$TOTAL,%shot\$TOTAL)\n",$dat,$dat;
 }
 
 sub process_lumped {
@@ -116,8 +116,8 @@ sub process_lumped {
     my $bins = $obj->fetch_bins($chrom);
     my @d;
     for my $bin (@$bins) {
-	if( $bin >= $left && $bin <= $right) {
-	    push @d, $obj->$flag($chrom,$bin);
+	if( $bin >= $left && $bin <= $right ) {
+	    push @d, join("\t", $chrom,$bin,$obj->$flag($chrom,$bin));
 	} 
     }
     return \@d;
@@ -128,8 +128,8 @@ package Windows;
 
 use List::Util qw(sum max);
 # constants for sliding windows
-use constant WINDOW        => 50_000;
-use constant STEP          => 1_000;
+use constant WINDOW        => 20_000;
+use constant STEP          => 20_000;
 
 sub new {
   my ($self,$label) = @_;

@@ -10,7 +10,6 @@ use constant GENES    => 'coprinus_gene_summary.tab';
 use constant ORTHOS   => 'coprinus_orthologs.tab';
 use constant ORPHANS  => 'coprinus_orphans.tab';
 use constant PARALOGS => 'coprinus_paralogs.tab';
-use constant SSGENES  => 'coprinus_only.tab';
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 
@@ -58,9 +57,9 @@ $paralogs->parse(File::Spec->catfile($DIR,PARALOGS),
 		 qw(chrom chrom_start));
 #$paralogs->normalize($genes);
 
-my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
-$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
-		qw(chrom chrom_start));
+#my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
+#$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
+#		qw(chrom chrom_start));
 #$ssgenes->normalize($genes);
 
 my %dat = ( 'genes'   => $genes,
@@ -68,7 +67,7 @@ my %dat = ( 'genes'   => $genes,
 	    'paralogs' => $paralogs,
 	    'orthologs'=> $orthos,
 	    'orphans'  => $orphans,
-	    'species_specific' => $ssgenes,
+	    #'species_specific' => $ssgenes,
 	    );
 
 for my $dat ( keys %dat ) {
@@ -76,10 +75,10 @@ for my $dat ( keys %dat ) {
 #    open(my $leftfh => ">$odir/$dat\_left.dat") || die $!;
 #    print $leftfh join("\t",qw(TOTAL)),"\n";
     open(my $armsfh => ">$odir/$dat\_arms.dat") || die $!;
-    print $armsfh join("\t",qw(TOTAL)),"\n";
+    print $armsfh join("\t",qw(CHROM BIN TOTAL)),"\n";
 
     open(my $centerfh => ">$odir/$dat\_center.dat") || die $!;
-    print $centerfh join("\t",qw(TOTAL)),"\n";
+    print $centerfh join("\t",qw(CHROM BIN TOTAL)),"\n";
 #    open(my $rightfh => ">$odir/$dat\_right.dat") || die $!;
 #    print $rightfh join("\t",qw(TOTAL)),"\n";
     
@@ -105,7 +104,8 @@ for my $dat ( keys %dat ) {
     printf R "pdf(\"%s.pdf\")\n",$dat;
 #    printf R "boxplot(%sleft\$TOTAL,%sctr\$TOTAL,%sright\$TOTAL,main=\"%s Density BoxPlot\", outline=FALSE, names=c(\"Left\",\"Center\",\"Right\"))\n",$dat,$dat,$dat,$dat;
     printf R "boxplot(%sarms\$TOTAL,%sctr\$TOTAL,main=\"%s Density BoxPlot\", outline=FALSE, names=c(\"Arms\",\"Center\"))\n",$dat,$dat,$dat;
-    
+    printf R "ks.test(%sarms\$TOTAL,%sctr\$TOTAL)\n",$dat,$dat;
+
 }
 
 sub process_lumped {
@@ -119,11 +119,11 @@ sub process_lumped {
     my (@left,@center,@right);
     for my $bin (@$bins) {
 	if( $bin <= $subtleft ) {
-	    push @left, $obj->$flag($chrom,$bin);
+	    push @left, join("\t",$chrom,$bin,$obj->$flag($chrom,$bin));
 	} elsif( $bin <= $subtright ) {
-	    push @center, $obj->$flag($chrom,$bin);
+	    push @center, join("\t",$chrom,$bin,$obj->$flag($chrom,$bin));
 	} else {
-	    push @right, $obj->$flag($chrom,$bin);
+	    push @right, join("\t",$chrom,$bin,$obj->$flag($chrom,$bin));
 	}
     }
     return (\@left,\@center,\@right);
@@ -134,8 +134,8 @@ package Windows;
 
 use List::Util qw(sum max);
 # constants for sliding windows
-use constant WINDOW        => 50_000;
-use constant STEP          => 1_000;
+use constant WINDOW        => 20_000;
+use constant STEP          => 20_000;
 
 sub new {
   my ($self,$label) = @_;
