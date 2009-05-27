@@ -1,4 +1,23 @@
 #!/usr/bin/perl -w
+# $Id$
+
+=head1 NAME
+
+gff_feature_length - summary of feature lengths in a GFF file
+
+=head1 USAGE
+
+gff_feature_length file.gff3
+
+=head1 DESCRIPTION 
+
+ Will print out per-feature lengths and total length 
+
+CMDLINE options
+ -type provides ability to filter only by certain features (i.e. gene, mRNA)
+
+=cut
+
 use strict;
 use Getopt::Long;
 
