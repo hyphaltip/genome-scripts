@@ -13,7 +13,11 @@ use SVG;
 
 # SHOULD WE GENERATE THE PLOT WITH GD OR SVG?
 # This should just be a command line parameter
-my $GD  = 0;
+
+my $GD  = 1;
+
+GetOptions(
+	   'gd!' => \$GD);
 
 
 mkdir("png") unless -d "png";
@@ -38,7 +42,6 @@ if( ! $dbfile ) {
 my $USE_CACHED = 0;
 
 
-#celegans data
 # DATA SOURCES
 use constant GENES    => 'coprinus_gene_summary.tab';
 use constant ORTHOS   => 'coprinus_orthologs.tab';
@@ -49,50 +52,68 @@ use constant P450_DOMAINS  => 'domains/p450.dat';
 use constant KINASE_DOMAINS  => 'domains/Pkinase.dat';
 use constant WD40_DOMAINS  => 'domains/WD40.dat';
 
+use constant FISH_SIGNIF_BLOCKS => 'coprinus_FISH_synteny.tab';
+use constant FISH_BLOCKS_ALL    => 'coprinus_FISH_synteny_all.tab';
 use constant LB_BLOCKS     => 'cc-lb_synteny.tab';
 use constant PC_BLOCKS     => 'cc-pc_synteny.tab';
 
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 
+use constant HAPLOTYPE_BLOCKS => 'haplotype_blocks.tab';
+use constant SSR => 'ssr.tab';
+use constant TRNA => 'coprinus_trna.tab';
+use constant TE_REPEAT => 'coprinus_TE_repeats.tab';
 # TRACK COLORS - COLLECT HERE FOR EASY ACCESS
 use constant BLOCKS_COLOR  => 'steelblue';
 use constant BLOCKS_COLOR_REV  => 'goldenrod';
 
+use constant HAPLOTYPE_HOT_COLOR  => 'red';
+use constant HAPLOTYPE_COLD_COLOR  => 'steelblue';
+
 use constant GENES_COLOR     => 'red';
-use constant ORTHOS_COLOR    => 'blue';
-use constant PARALOGS_COLOR  => 'slateblue';
-use constant ORPHANS_COLOR   => 'rosybrown';
-use constant SSGENES_COLOR   => 'olive';
+use constant ORPHANS_COLOR   => 'varP4';
+use constant ORTHOS_COLOR    => 'varP2';
+use constant PARALOGS_COLOR  => 'varP3';
+
+
 use constant KINASE_DOMAINS_COLOR   => 'steelblue';
 use constant P450_DOMAINS_COLOR     => 'steelblue';
 use constant WD40_DOMAINS_COLOR     => 'steelblue';
-use constant REPEATS_COLOR   => 'forestgreen';
-use constant INTERGENIC_COLOR => 'seablue';
+
+use constant INTERGENIC_COLOR => 'varP4';
+use constant TRNA_COLOR      => 'varA3';
+use constant TE_REPEAT_COLOR => 'varB3';
+use constant REPEATS_COLOR   => 'varB1';
+
+use constant FISH_BLOCKS_COLOR => 'darkgreen';
+
 # Font sizes...
 use constant LABEL_SIZE    => '8';
 
 # These are not being used right now
 my %labels = ( 
 	       genes           => 'Genes / 50 kb',
-	       intergenic    => 'Intergenic distances / 50 kb',
+	       intergenic      => 'Intergenic distances / 50 kb',
 	       gmap            => 'gmap vs pmap',
-	       orthologs       => 'Orthologous genes/genes',
-	       orphans         => 'Orphan genes/genes/50kb',
-	       paralogs        => 'Paralogous genes/genes/50kb',
-	       ssgenes         => 'Species-specific genes/genes/50kb',
+	       orthologs       => 'Orthologous genes / genes / 50 kb',
+	       orphans         => 'Orphan genes / genes / 50 kb',
+	       paralogs        => 'Paralogous genes / genes / 50 kb',
 	       mercator_blocks => 'Syntenic blocks',
 	       ortholog_blocks => 'Ortholog blocks',
 	       pc_blocks       => 'Pchr Mercator Syntenic blocks',
 	       lb_blocks       => 'Lbic Mercator Syntenic blocks',
-	       repeats         => 'Repetitive elements/50kb window',
-	       kinase_domains  => 'Kinase Domains/genes/50kb',
-	       p450_domains    => 'P450 Domains/genes/50kb',
-	       wd40_domains    => 'WD40 Domains/genes/50kb',
+	       repeats         => 'All Repetitive elements / 50 kb',
+	       te_repeat       => 'Transposable elements / 50 kb',
+	       haplotype       => 'Haplotype blocks',
+	       ssr             => 'SSRs',
+	       tRNA            => 'tRNA genes / 50 kb',
+	       fish_blocks	=> 'FISH Signif synteny blocks',
+	       fish_blocks_all	=> 'FISH synteny blocks',
 	       );
 my %ylabels = (
 	       genes           => 'genes',
-	       intergenic    => 'intergenic',
+	       intergenic      => 'intergenic',
 	       orthologs       => 'ortholog-genes',
 	       orphans         => 'orphan-genes',
 	       paralogs        => 'paralog-genes',
@@ -101,9 +122,15 @@ my %ylabels = (
 	       pc_blocks       => 'Pchr Syntenic blocks',
 	       lb_blocks       => 'Lbic Syntenic blocks',
 	       repeats         => 'repetitive elements-50kb',
+	       te_repeat       => 'te-repeats',
 	       kinase_domains  => 'kinasedomains',
 	       p450_domains    => 'p450domains',
 	       wd40_domains    => 'wd40domains',
+	       haplotype       => 'haplotype',
+	       ssr             => 'SSRs',
+	       tRNA            => 'tRNA',
+	       fish_blocks	=> 'fish_blocks_signif',
+	       fish_blocks_all	=> 'fish_blocks',
 	       );
 
 my %units = (
@@ -118,10 +145,16 @@ my %units = (
 	     mercator_blocks => 'Syntenic blocks',
 	     pc_blocks       => 'Pchr Mercator Syntenic blocks',
 	     lb_blocks       => 'Lbic Mercator Syntenic blocks',
-	     repeats         => 'repetitive elements/50kb',
+	     repeats         => 'All repetitive elements/50kb',
+	     te_repeat      => 'TE repeats / 50kb',
 	     kinase_domains  => 'Kinase Domains',
 	     p450_domains    => 'P450 Domains',
 	     wd40_domains    => 'WD40 Domains',
+	     haplotype       => 'Haploype blocks',
+	     ssr             => 'SSRs',
+	     tRNA            => 'tRNA genes',
+	     fish_blocks  => 'FISH blocks signif',
+	     fish_blocks_all=> 'FISH blocks'
 	     );
 
 # IMAGE CONSTANTS
@@ -159,17 +192,19 @@ my $CONFIG = {};
 my $genes = Windows->new('genes');
 $genes->parse( File::Spec->catfile($DIR,GENES),
 		  qw(chrom chrom_start));
-#$genes->print_info('ci_genes');
 
 my $repeats = Windows->new('repeats');
 $repeats->parse(File::Spec->catfile($DIR,REPEATS),
 		qw(chrom start));
 
+my $te = Windows->new('te_repeat');
+$te->parse(File::Spec->catfile($DIR,TE_REPEAT),
+	   qw(chrom start));
+
 my $orthos = Windows->new('orthologs');
 $orthos->parse(File::Spec->catfile($DIR,ORTHOS),
 	       qw(src src_start));
 $orthos->normalize($genes);
-#$orthos->print_info('orthologs','normalized');
 
 my $orphans = Windows->new('orphans'); # orphans
 $orphans->parse(File::Spec->catfile($DIR,ORPHANS),
@@ -181,115 +216,112 @@ $paralogs->parse(File::Spec->catfile($DIR,PARALOGS),
 		qw(chrom chrom_start));
 $paralogs->normalize($genes);
 
-my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
-$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
-		qw(chrom chrom_start));
-$ssgenes->normalize($genes);
-
-my $kinase_domains = Windows->new('kinase_domains'); #species-specificgenes
-$kinase_domains->parse(File::Spec->catfile($DIR,KINASE_DOMAINS),
-		qw(chrom chrom_start));
-$kinase_domains->normalize($genes);
-
-my $p450_domains = Windows->new('p450_domains'); #species-specificgenes
-$p450_domains->parse(File::Spec->catfile($DIR,P450_DOMAINS),
-		qw(chrom chrom_start));
-$p450_domains->normalize($genes);
-
-my $wd40_domains = Windows->new('wd40_domains'); #species-specificgenes
-$wd40_domains->parse(File::Spec->catfile($DIR,WD40_DOMAINS),
-		qw(chrom chrom_start));
-$wd40_domains->normalize($genes);
-
-my $lb_blocks = Windows->new('lb_blocks'); # cc-lb synteny blocks
-$lb_blocks->parse_blocks(File::Spec->catfile($DIR,LB_BLOCKS));
-
-my $pc_blocks = Windows->new('pc_blocks'); # cc-pc synteny blocks
-$pc_blocks->parse_blocks(File::Spec->catfile($DIR,PC_BLOCKS));
+# my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
+# $ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
+# 		qw(chrom chrom_start));
+# $ssgenes->normalize($genes);
 
 my $intergenic = Windows->new('intergenic'); # intergenic distances
 $intergenic->parse(File::Spec->catfile($DIR,INTERGENIC),
-		   qw(chrom chrom_start length));
+		   qw(chrom chrom_start length), sub { $_[0] < 1000 && $_[0] > 10 } );
 
+my $haplotype_blocks = Windows->new('haplotype'); # haplotype
+$haplotype_blocks->parse_haplotype_blocks(File::Spec->catfile($DIR,HAPLOTYPE_BLOCKS));
+
+my $ssrs = Windows->new('ssr'); #SSRs
+$ssrs->parse_range(File::Spec->catfile($DIR,SSR),
+		   qw(chrom start stop));
+
+my $fish_blocks = Windows->new('fish_blocks'); #FISH blocks
+$fish_blocks->parse_blocks(File::Spec->catfile($DIR,FISH_SIGNIF_BLOCKS),
+			   qw(chrom start stop block));
+my $fish_blocks_all = Windows->new('fish_blocks_all'); #FISH blocks
+$fish_blocks_all->parse_blocks(File::Spec->catfile($DIR,FISH_BLOCKS_ALL),
+			   qw(chrom start stop block));
+
+my $trna = Windows->new('tRNA'); # tRNAs
+$trna->parse(File::Spec->catfile($DIR,TRNA),
+	     qw(chrom start));
 # Just make the settings has global so I don't have to worry about
 # passing it around 'cuz that just sucks
 my $settings;
 
 for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
 	       keys %CHROMS) {
-  warn( "Generating $chrom plot...\n");
-  # The class of the img object depends on what we are trying to print.
-  my $img = establish_image();
-  $settings = establish_settings($img);
-  # Make all images the same size - scaled to the largest chromosome.
-  # Calculate the yscale
-  my $xscale = (WIDTH - (TRACK_LEFT * 2))/$largest_chrom;
+    next unless $chrom =~ /^Chr_/;
+    warn( "Generating $chrom plot...\n");
+    # The class of the img object depends on what we are trying to print.
+    my $img = establish_image();
+    $settings = establish_settings($img);
+    # Make all images the same size - scaled to the largest chromosome.
+    # Calculate the yscale
+    my $xscale = (WIDTH - (TRACK_LEFT * 2))/$largest_chrom;
 
-  $CONFIG = {};
-  $CONFIG = { chrom  => $chrom,
-	      xscale => $xscale,
-	      count  => 0,
-	      img    => $img };
+    $CONFIG = {};
+    $CONFIG = { chrom  => $chrom,
+		xscale => $xscale,
+		count  => 0,
+		img    => $img };
 
-  plot_blocks($lb_blocks,BLOCKS_COLOR,BLOCKS_COLOR_REV);
-  plot_blocks($pc_blocks,BLOCKS_COLOR,BLOCKS_COLOR_REV);
-  plot('repeats',$repeats,'total',REPEATS_COLOR);
-  plot('genes',$genes,'total',GENES_COLOR);
-  plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR,2000);
-  plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
-  plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
-  plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
-  plot('ssgenes',$ssgenes,'normalized',SSGENES_COLOR);
-  plot('kinase_domains',$kinase_domains,'normalized',KINASE_DOMAINS_COLOR);
-  plot('p450_domains',$p450_domains,'normalized',P450_DOMAINS_COLOR);
-  plot('wd40_domains',$wd40_domains,'normalized',WD40_DOMAINS_COLOR);
+    plot('repeats',$repeats,'total',REPEATS_COLOR);
+    plot('te_repeat', $te,'total',TE_REPEAT_COLOR);
+    plot('tRNA',$trna,'total',TRNA_COLOR);
+    plot('genes',$genes,'total',GENES_COLOR);
+    plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
+    plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
+    plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
+    plot_haplotype_blocks($haplotype_blocks,
+			  HAPLOTYPE_HOT_COLOR,HAPLOTYPE_COLD_COLOR,
+			  $ssrs);  
+    plot_blocks($fish_blocks,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
+    plot_blocks($fish_blocks_all,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
+    plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR);
 
-  # Draw some header information and the xscale, which is
-  # always in megabases
-  my $width   = $CHROMS{$chrom}->[1];
-  my $scaled = TRACK_LEFT + ($xscale * $width);
-  my $height = TOTAL_TRACKS * (TRACK_HEIGHT + TRACK_SPACE) + 15;
-#  my $header = 'CHROMOSOME ' . $chrom;
-  my $header = $chrom;
-  my $footer = "megabase pairs";
+    # Draw some header information and the xscale, which is
+    # always in megabases
+    my $width   = $CHROMS{$chrom}->[1];
+    my $scaled = TRACK_LEFT + ($xscale * $width);
+    my $height = TOTAL_TRACKS * (TRACK_HEIGHT + TRACK_SPACE) + 15;
+    my $header = $chrom;
+    my $footer = "Megabase pairs";
 
-  if ($GD) {
-    # Place the header on the right side of the image
-    $img->string(gdLargeFont,$scaled - (length($header) * gdLargeFont->width) - 2,
-		 5,$header,$settings->{black});
-    # ...or place it on the left edge...
-    #$img->string(gdGiantFont,TRACK_LEFT,
-    #	       5,$header,$settings->{black});
+    if ($GD) {
+	# Place the header on the right side of the image
+	$img->string(gdLargeFont,$scaled - (length($header) * gdLargeFont->width) - 2,
+		     5,$header,$settings->{black});
+	# ...or place it on the left edge...
+	#$img->string(gdGiantFont,TRACK_LEFT,
+	#	       5,$header,$settings->{black});
 
-    $img->string(gdMediumBoldFont,$scaled/2-(length($footer)/2),
-		 $height - (gdMediumBoldFont->height) - 2,$footer,$settings->{black});
-    open OUT,">png/$chrom.png";
-    print OUT $img->png;
-  } else {
-    $img->text(
-	       style=> {
-			'font' => 'Helvetica',
-			'font-size'  => 40,
-			'font-style' => 'bold'
+	$img->string(gdMediumBoldFont,$scaled/2-(length($footer)/2),
+		     $height - (gdMediumBoldFont->height) - 2,$footer,$settings->{black});
+	open OUT,">png/$chrom.png";
+	print OUT $img->png;
+    } else {
+	$img->text(
+		   style=> {
+		       'font' => 'Helvetica',
+		       'font-size'  => 40,
+		       'font-style' => 'bold'
 		       },
-	       id=>"$header",
-	       x=>TRACK_LEFT,
-	       y=>2)->cdata($header);
+		   id=>"$header",
+		   x=>TRACK_LEFT,
+		   y=>10)->cdata($header);
 
-    $img->text(
-	       style=> {
-			'font' => 'Helvetica',
-			'font-size' => 14,
-		       },
-	       id=>"Megabase pairs",
-	       x=>$scaled/2-(length($footer)/2),
-	       y=>$height)->cdata($footer);
-    open OUT,">svg/$chrom.svg";
-    my $out = $img->xmlify;
-    print OUT $out;
+	$img->text(
+		   style=> {
+		       'font' => 'Helvetica',
+		       'font-size' => 14,
+		   },
+		   id=>"Megabase pairs",
+		   x=>$scaled/2-(length($footer)/2),
+		   y=>$height)->cdata($footer);
+	open OUT,">svg/$chrom.svg";
+	my $out = $img->xmlify;
+	print OUT $out;
 
-  }
-  close OUT;
+    }
+    close OUT;
 }
 
 sub plot {
@@ -314,7 +346,7 @@ sub plot {
   # Create a grouping for this element for SVG-generated images
 
   my $bins = $obj->fetch_bins($chrom);
-  foreach my $bin (@$bins) {
+  for my $bin (@$bins) {
     my $total = $obj->$flag($chrom,$bin);
     my $left  = ($bin * $xscale) + TRACK_LEFT;
     my $top   = $track_baseline + (TRACK_HEIGHT - ($total * $yscale));
@@ -903,6 +935,80 @@ sub plot_blocks {
     return;
 }
 
+sub plot_haplotype_blocks {
+    my ($obj,$hicolor,$cicolor,$markers) = @_;
+
+    my $hcolor = $settings->{$hicolor};
+    my $ccolor = $settings->{$cicolor};
+    my $black = $settings->{black};
+
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
+
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
+    if( ! exists $obj->{$chrom} ) {
+	warn( " no chrom $chrom available\n");
+    }
+    my @blocks = @{$obj->{$chrom} || []};
+    my @ssrs;
+    if( defined $markers ) {
+	@ssrs = @{$markers->{$chrom} || []};
+    }
+    # assume that the strand is the majority of blocks 
+
+    my $total;
+    for my $block (@blocks) {
+	$total++;
+	my ($start,$stop,$target,$tlength,$hot_cold) = @$block;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,
+				  $hot_cold  ? $hcolor : $ccolor);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  => $right-1-$left,
+			    height => $bottom-$top,
+			    id     => $target."-$total-" . $start .'-' . $stop,
+			    stroke => $hot_cold ? $hcolor : $ccolor,
+			    fill   => $hot_cold ? $hcolor : $ccolor);
+	}	 
+	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
+    }
+    $total = 0;
+    for my $marker ( @ssrs ) {
+	$total++;
+	my ($start,$stop) = @$marker;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+#	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $right  = $left + 1;
+#	warn("left is $left, right is $right\n for $start..$stop\n");
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,
+				  $black);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  =>$right - 0.90 - $left,
+			    height =>$bottom-$top,
+			    id     =>"SSR-$total-" . $start .'-' . $stop,
+			    stroke => $black,
+			    fill   => $black);
+	}	 
+    }
+    draw_bounding($track_baseline,$obj);
+    $CONFIG->{count}++;
+    return;
+}
+
+
 # Draw a bounding box for this track.
 sub draw_bounding {
   my ($top,$obj,$two_pane) = @_;
@@ -1038,10 +1144,50 @@ sub establish_settings {
 		    pink   => $img->colorAllocate(204,000,204),
 		    sea    => $img->colorAllocate(000,102,102),
 		    orange => $img->colorAllocate(255,153,000),
-		    darkblue => $img->colorAllocate(0,0,153),
+		    darkblue => $img->colorAllocate(6,38,111),
+		    medblue  => $img->colorAllocate(42,68,128),
 		    darkgreen => $img->colorAllocate(0,51,0),
 		    darkred => $img->colorAllocate(153,0,0),
 		    seablue => $img->colorAllocate(0,102,204),
+		    
+		    # *** Primary Color:
+
+		    # var. 1 = #133AAC = rgb(19,58,172)
+		    # var. 2 = #2B4181 = rgb(43,65,129)
+		    # var. 3 = #062170 = rgb(6,33,112)
+		    # var. 4 = #476BD6 = rgb(71,107,214)
+		    # var. 5 = #6D87D6 = rgb(109,135,214)
+		    varP1 => $img->colorAllocate(19,58,172),
+		    varP2 => $img->colorAllocate(43,65,129),
+		    varP3 => $img->colorAllocate(6,33,112),
+		    varP4 => $img->colorAllocate(71,107,214),
+		    varP5 => $img->colorAllocate(109,135,214),
+		    # *** Secondary Color A:
+
+		    # var. 1 = #FFE100 = rgb(255,225,0)
+		    # var. 2 = #BFAE30 = rgb(191,174,48)
+		    # var. 3 = #A69200 = rgb(166,146,0)
+		    # var. 4 = #FFE840 = rgb(255,232,64)
+		    # var. 5 = #FFEE73 = rgb(255,238,115)
+
+		    varA1 => $img->colorAllocate(255,255,0),
+		    varA2 => $img->colorAllocate(191,174,48),
+		    varA3 => $img->colorAllocate(166,146,0),
+		    varA4 => $img->colorAllocate(255,232,64),
+		    varA5 => $img->colorAllocate(255,238,115),
+		    # *** Secondary Color B:
+
+		    # var. 1 = #FF6A00 = rgb(255,106,0)
+		    # var. 2 = #BF6B30 = rgb(191,107,48)
+		    # var. 3 = #A64500 = rgb(166,69,0)
+		    # var. 4 = #FF8F40 = rgb(255,143,64)
+		    # var. 5 = #FFAD73 = rgb(255,173,115)		    
+
+		    varB1 => $img->colorAllocate(255,106,0),
+		    varB2 => $img->colorAllocate(191,107,48),
+		    varB3 => $img->colorAllocate(166,69,0),
+		    varB4 => $img->colorAllocate(255,143,64),
+		    varB5 => $img->colorAllocate(255,173,115),
 
 		    # Good colors
 		    red    => $img->colorAllocate(255,0,0),
@@ -1068,6 +1214,45 @@ sub establish_settings {
 		  pink   => 'rgb(204,000,204)',
 		  sea    => 'rgb(000,102,102)',
 		  orange => 'rgb(255,153,000)',
+
+		    # *** Primary Color:
+
+		    # var. 1 = #133AAC = rgb(19,58,172)
+		    # var. 2 = #2B4181 = rgb(43,65,129)
+		    # var. 3 = #062170 = rgb(6,33,112)
+		    # var. 4 = #476BD6 = rgb(71,107,214)
+		    # var. 5 = #6D87D6 = rgb(109,135,214)
+		    varP1 => 'rgb(19,58,172)',
+		    varP2 => 'rgb(43,65,129)',
+		    varP3 => 'rgb(6,33,112)',
+		    varP4 => 'rgb(71,107,214)',
+		    varP5 => 'rgb(109,135,214)',
+		    # *** Secondary Color A:
+
+		    # var. 1 = #FFE100 = rgb(255,225,0)
+		    # var. 2 = #BFAE30 = rgb(191,174,48)
+		    # var. 3 = #A69200 = rgb(166,146,0)
+		    # var. 4 = #FFE840 = rgb(255,232,64)
+		    # var. 5 = #FFEE73 = rgb(255,238,115)
+
+		    varA1 => 'rgb(255,255,0)',
+		    varA2 => 'rgb(191,174,48)',
+		    varA3 => 'rgb(166,146,0)',
+		    varA4 => 'rgb(255,232,64)',
+		    varA5 => 'rgb(255,238,115)',
+		    # *** Secondary Color B:
+
+		    # var. 1 = #FF6A00 = rgb(255,106,0)
+		    # var. 2 = #BF6B30 = rgb(191,107,48)
+		    # var. 3 = #A64500 = rgb(166,69,0)
+		    # var. 4 = #FF8F40 = rgb(255,143,64)
+		  # var. 5 = #FFAD73 = rgb(255,173,115)		    
+		  
+		  varB1 => 'rgb(255,106,0)',
+		  varB2 => 'rgb(191,107,48)',
+		  varB3 => 'rgb(166,69,0)',
+		  varB4 => 'rgb(255,143,64)',
+		  varB5 => 'rgb(255,173,115)',
 		  # Good colors
 		  red    => 'rgb(255,0,0)',
 		  blue   => 'rgb(000,000,255)',
@@ -1080,7 +1265,8 @@ sub establish_settings {
 		  goldenrod   => 'rgb(238,221,130)',
 		  slateblue   => 'rgb(106,90,205)',
 		  forestgreen => 'rgb(34,139,34)',
-		  darkblue => 'rgb(0,0,153)',
+		  darkblue => 'rgb(6,38,111)',
+		  medblue  => 'rgb(42,68,128)',
 		  darkgreen => 'rgb(0,51,0)',
 		  darkred => 'rgb(153,0,0)',
 		  seablue  => 'rgb(0,102,204)',
@@ -1136,11 +1322,11 @@ sub read_dumped_file {
 
 
 sub parse {
-    my ($self,$file,$group_by,$bin_by,$save_by) = @_;
+    my ($self,$file,$group_by,$bin_by,$save_by, $filter) = @_;
     my $cols = fetch_columns($file);
     for my $col ( $group_by, $bin_by, $save_by) {
-	if( defined $col && ! exists $cols->{$bin_by}) {
-	    die("cannot find column $bin_by in $file\n");
+	if( defined $col && ! exists $cols->{$col}) {
+	    die("cannot find column $col in $file\n");
 	}
     }
     warn( "parsing: $file ...\n");
@@ -1176,7 +1362,11 @@ sub parse {
 	my $value = 0;
 	if( defined $save_by ) {
 	    $value  = eval { $fields[$cols->{$save_by}] };
-	    push (@{$self->{nonsliding}->{$group_val}},[$bin_val,$value]);
+	    if( ! defined $filter || &$filter($value))  {
+		push (@{$self->{nonsliding}->{$group_val}},[$bin_val,$value]);
+	    } else {
+		next;
+	    }
 	}  else {
 	    $value = 1;
 	    # Okay, I didn't find a save_by value. Just plotting by the bin_value
@@ -1189,9 +1379,34 @@ sub parse {
 }
 
 sub parse_blocks {
+    my ($self,$file,$chrom_col,$start_col,$end_col,$target_col) = @_;
+    print STDERR "parsing: $file ...\n";
+    my $cols = fetch_columns($file);
+    for my $col ( $chrom_col,$start_col,$end_col,$target_col) { 
+	if( defined $col && ! exists $cols->{$col}) {
+	    die("cannot find column $col in $file\n");
+	}
+    }
+    my $positions = {};
+    open IN,$file or die "$! $file\n";
+    while (<IN>) {
+	chomp;
+	# Skip comments
+	next if (/^\#/);
+	my @fields = split("\t",$_);
+	my $chrom = $fields[$cols->{$chrom_col}];
+	my $start = $fields[$cols->{$start_col}];
+	my $end   = $fields[$cols->{$end_col}];
+	my $target = $fields[$cols->{$target_col}];
+	push (@{$self->{$chrom}},[$start,$end,$target,abs($end-$start),'+']);
+    }
+    return;
+}
+
+sub parse_mercator_blocks {
   my ($self,$file) = @_;
   print STDERR "parsing: $file ...\n";
-  
+
   my $positions = {};
   open IN,$file or die "$! $file\n";
   while (<IN>) {
@@ -1202,6 +1417,62 @@ sub parse_blocks {
     # Fetch the position of the bin_by and group_by
     # columns in the fields array
     push (@{$self->{$chrom}},[$start,$end,$target,abs($tend-$tstart),$tstrand]);
+  }
+  return;
+}
+
+sub parse_range {
+  my ($self,$file,$group_by,$start,$end) = @_;
+  print STDERR "parsing: $file ...\n";
+  my $cols = fetch_columns($file);
+  for my $col ( $group_by, $start, $end) {
+      if( defined $col && ! exists $cols->{$col}) {
+	  die("cannot find column $col in $file\n");
+      }
+  }
+  my $positions = {};
+  open IN,$file or die "$! $file\n";
+  while (<IN>) {
+      chomp;
+      # Skip comments
+      next if (/^\#/);
+      # Fetch the position of the bin_by and group_by
+      # columns in the fields array
+      my @fields    = split("\t",$_);
+      my $group_val = $fields[$cols->{$group_by}];
+      my $start_val = $fields[$cols->{$start}];
+      my $end_val   = $fields[$cols->{$end}];
+
+      # Fetch the position of the bin_by and group_by
+      # columns in the fields array
+      push @{$self->{$group_val}},[$start_val,$end_val];
+  }
+  return;
+}
+
+sub parse_haplotype_blocks {
+  my ($self,$file) = @_;
+  print STDERR "parsing: $file ...\n";
+  my $cols = fetch_columns($file);
+  for my $col ( qw(start stop chrom type designation) ) {
+      if( defined $col && ! exists $cols->{$col}) {
+	  die("cannot find column $col in $file\n");
+      }
+  }  
+  my $positions = {};
+  open IN,$file or die "$! $file\n";
+  while (<IN>) {
+    chomp;
+    # Skip comments
+    next if (/^\#/);
+    my @fields    = split("\t",$_);
+    my $start   = $fields[$cols->{'start'}];
+    my $stop    = $fields[$cols->{'stop'}];
+    my $chrom   = $fields[$cols->{'chrom'}];
+    my $target  = $fields[$cols->{'type'}];
+    my $desig   = $fields[$cols->{'designation'}];
+    push (@{$self->{$chrom}},[$start,$stop,$target,abs($stop-$start),
+			      $desig eq 'HOT']);
   }
   return;
 }
