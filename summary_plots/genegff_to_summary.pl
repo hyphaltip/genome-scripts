@@ -67,7 +67,6 @@ for my $chrom ( sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 	for my $mRNA ( $gene->get_SeqFeatures ) {
 	    my $cds_len = 0;
 	    for my $cds ( $mRNA->get_SeqFeatures('cds') ) {
-
 		$cds_len += $cds->length;
 	    }
 	    print $genefh join("\t", $gene->id, $mRNA->id, 
