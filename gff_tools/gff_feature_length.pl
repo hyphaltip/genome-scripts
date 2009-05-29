@@ -14,18 +14,23 @@ gff_feature_length file.gff3
  Will print out per-feature lengths and total length 
 
 CMDLINE options
- -type provides ability to filter only by certain features (i.e. gene, mRNA)
-
+ -type [type] provides ability to filter only by certain features (i.e. gene, mRNA)
+ -genome [size] genome size to give fraction of genome
 =cut
 
 use strict;
 use Getopt::Long;
+use Statistics::Descriptive;
 
 my $type;
+my $genome;
 my @names = qw(Name ID Parent Note);
 GetOptions('t|type:s' => \$type,
+	   'g|genome:i'=> \$genome,
 	   );
 my $total;
+my $count;
+my $stats = Statistics::Descriptive::Full->new;
 while(<>) {
     next if /^\#/;
     chomp;
@@ -39,8 +44,17 @@ while(<>) {
 	    last;
 	}
     }
-    print join("\t", $name, abs($line[4]-$line[3])),"\n";
-    $total += abs($line[4] - $line[3]);
+    my $len = abs($line[4]-$line[3])+1;
+    print join("\t", $name, ),"\n";
+    $total += $len;
+    $stats->add_data($len);
+    $count ++;
 }
 
-print " Total = $total\n";
+printf " Max = %d Mean = %.1f Median = %1.f Total = %d N = %d\n",
+    $stats->max, $stats->mean, $stats->median,$stats->sum,$stats->count;
+
+if( $genome ) {
+    printf "  %.2f Mb Total %% %.2f \n",$stats->sum / 1000000, 
+    100 * $stats->sum / $genome;
+}
