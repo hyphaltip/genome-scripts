@@ -22,7 +22,9 @@ while(<>) {
     my @line = split(/\t/,$_);
     next unless ($line[2] eq 'CDS'  || 
 		 $line[2] eq 'exon' || 
-		 $line[2] eq 'stop_codon');
+		 $line[2] eq 'stop_codon' ||
+		 $line[2] eq 'start_codon'
+		 );
     $line[-1] =~ s/^\s+//;
     $line[-1] =~ s/\s+$//;
     my %set = map { split(/\s+/,$_,2) } split(/\s*;\s*/,pop @line);;
@@ -50,7 +52,7 @@ while(<>) {
     if( $pid ) {
 	$transcript2protein{$tid} = $pid;
     }
-#    warn("tid=$tid pid=$pid gid=$gid tname=$tname gname=$gname\n");
+    # warn("tid=$tid pid=$pid gid=$gid tname=$tname gname=$gname\n");
     if( $fix ) {
 	if( $tid =~ /(\S+)\.\d+$/) {
 	    $gid = $1;
@@ -120,6 +122,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
 	my @exons = grep { $_->[2] eq 'exon' } @$exons;
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exons;	
+	my @start_codons   = grep { $_->[2] eq 'start_codon'  } @$exons;
 	my @stop_codons   = grep { $_->[2] eq 'stop_codon'  } @$exons;
 
 	if( ! @exons ) {
@@ -129,6 +132,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 		$exons[-1]->[2] = 'exon';
 	    }
 	}
+	
 	my $proteinid = $transcript2protein{$transcript};
 	my ($chrom,$src,$strand,$min,$max);
 	for my $exon ( @exons ) {
@@ -175,6 +179,15 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	    } else {
 #		warn("stop codon is ", join("\t", @{$stop_codons[0]}), "\n");
 		$cds[-1]->[3] = $stop_codons[0]->[3];
+	    }
+	}
+	if( @start_codons ) {
+	    if( $strand_val > 0 ) {		
+#		warn("stop codon is ", join("\t", @{$stop_codons[0]}), "\n");
+		$cds[0]->[3] = $start_codons[0]->[3];
+	    } else {
+		warn("start codon is ", join("\t", @{$start_codons[0]}), "\n");
+		$cds[0]->[4] = $start_codons[0]->[4];
 	    }
 	}
 	for my $cds ( @cds ) {
