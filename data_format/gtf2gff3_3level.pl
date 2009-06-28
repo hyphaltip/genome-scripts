@@ -28,7 +28,7 @@ while(<>) {
     $line[-1] =~ s/^\s+//;
     $line[-1] =~ s/\s+$//;
     my %set = map { split(/\s+/,$_,2) } split(/\s*;\s*/,pop @line);
-    
+
     my ($gid,$tid,$pid,$tname,$gname,$alias) = 
 	( map { $set{$_} =~ s/\"//g;
 		$set{$_} }  
@@ -38,7 +38,7 @@ while(<>) {
 	  );    
     if( ! $tid ) {
 	$tid = $last_tid;
-    }    
+    }
     if( defined $tid && $tid =~ /^\d+$/ ) { # JGI transcript ids are numbers only
 	$tid = "t_$tid";
     }
@@ -124,7 +124,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exons;	
 	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exons;
 	my ($stop_codon)   = grep { $_->[2] eq 'stop_codon'  } @$exons;
-
+	
 	if( ! @exons ) {
 	  for my $e ( @cds ) {
 	    push @exons, [@$e];
@@ -181,27 +181,30 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	
 	if( $stop_codon ) {
 	    if( $strand_val > 0 ) {		
-#		warn("stop codon is ", join("\t", @{$stop_codon}), "\n");
+		warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
 		$cds[-1]->[4] = $stop_codon->[4];
 		$translation_stop = $stop_codon->[4];
 	    } else {
-#		warn("stop codon is ", join("\t", @{$stop_codon}), "\n");
+		warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
 		$cds[-1]->[3] = $stop_codon->[3];
 		$translation_stop = $stop_codon->[3];
 	    }
-
-	}
+	  } else {
+	    $translation_stop = ($strand_val > 0) ? $cds[-1]->[4] : $cds[-1]->[3];
+	  }
 	if( $start_codon ) {
 	    if( $strand_val > 0 ) {		
-		warn("start codon is ", join("\t", @{$start_codon}), "\n");
+		warn("start codon is ", join("\t", @{$start_codon}), "\n") if $debug;
 		$cds[0]->[3] = $start_codon->[3];
 		$translation_start = $start_codon->[3];
 	    } else {
-		warn("start codon is ", join("\t", @{$start_codon}), "\n");
+		warn("start codon is ", join("\t", @{$start_codon}), "\n") if $debug;
 		$cds[0]->[4] = $start_codon->[4];
 		$translation_start = $start_codon->[4];
 	    }
-	}
+	  } else {
+	    $translation_start = ($strand_val > 0) ? $cds[0]->[3] : $cds[0]->[4];
+	  }
 	if ( $debug) {
 	  warn("CDS order is after :\n");
 	  for my $c ( @cds ) {
@@ -210,15 +213,6 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	}
 
 	for my $cds_i ( @cds ) {
-	  unless( defined $translation_start ) {
-	    $translation_start = ( $strand_val > 0) ? $cds_i->[3] : $cds_i->[4];
-	  }
-	  # last writer wins so keep running this through
-	  # rather than worrying about grabbing last CDS after
-	  # this is through
-	  unless( defined $translation_stop ) {
-	    $translation_stop = ($strand_val > 0) ? $cds_i->[4] : $cds_i->[3];
-	  }
 	  my $exon_ninth = sprintf("ID=%scds%06d;Parent=%s",
 				   $prefix,
 				   $counts{'CDS'}++,
