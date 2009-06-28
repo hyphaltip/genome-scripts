@@ -9,7 +9,7 @@ GetOptions('fix!' => \$fix,
 	   's|skipexons:s' => \$skipexons,
 	   'p|prefix:s' => \$prefix,
 	   'tp|transprefix:s' => \$transprefix,
-	   'debug!' => \$debug);
+	   'v|debug!' => \$debug);
 my %genes;
 my %genes2alias;
 my %transcript2name;
@@ -27,7 +27,7 @@ while(<>) {
 		 );
     $line[-1] =~ s/^\s+//;
     $line[-1] =~ s/\s+$//;
-    my %set = map { split(/\s+/,$_,2) } split(/\s*;\s*/,pop @line);;
+    my %set = map { split(/\s+/,$_,2) } split(/\s*;\s*/,pop @line);
     
     my ($gid,$tid,$pid,$tname,$gname,$alias) = 
 	( map { $set{$_} =~ s/\"//g;
@@ -122,15 +122,14 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
 	my @exons = grep { $_->[2] eq 'exon' } @$exons;
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exons;	
-	my @start_codons   = grep { $_->[2] eq 'start_codon'  } @$exons;
-	my @stop_codons   = grep { $_->[2] eq 'stop_codon'  } @$exons;
+	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exons;
+	my ($stop_codon)   = grep { $_->[2] eq 'stop_codon'  } @$exons;
 
 	if( ! @exons ) {
-	    @exons = @cds;
-	    for my $e ( @cds ) {
-		push @exons, [@$e];
-		$exons[-1]->[2] = 'exon';
-	    }
+	  for my $e ( @cds ) {
+	    push @exons, [@$e];
+	    $exons[-1]->[2] = 'exon';
+	  }
 	}
 	
 	my $proteinid = $transcript2protein{$transcript};
@@ -166,218 +165,245 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			 $mrna_ninth,
 			 )),"\n";
 	
-	my ($start_codon,$stop_codon);
+	my ($translation_start, $translation_stop);
+	
 	# order 5' -> 3' by multiplying start by strand
 
-	@cds = sort { $a->[3] * $strand_val <=> 
-		      $b->[3] * $strand_val } @cds;
+	@cds = sort { $a->[3] * $strand_val <=>
+			$b->[3] * $strand_val } @cds;
 
-	if( @stop_codons ) {
+	if ( $debug) {
+	  warn("CDS order is :\n");
+	  for my $c ( @cds ) {
+	    warn(join("\t", @$c), "\n");
+	  }
+	}
+	
+	if( $stop_codon ) {
 	    if( $strand_val > 0 ) {		
-#		warn("stop codon is ", join("\t", @{$stop_codons[0]}), "\n");
-		$cds[-1]->[4] = $stop_codons[0]->[4];
+#		warn("stop codon is ", join("\t", @{$stop_codon}), "\n");
+		$cds[-1]->[4] = $stop_codon->[4];
+		$translation_stop = $stop_codon->[4];
 	    } else {
-#		warn("stop codon is ", join("\t", @{$stop_codons[0]}), "\n");
-		$cds[-1]->[3] = $stop_codons[0]->[3];
+#		warn("stop codon is ", join("\t", @{$stop_codon}), "\n");
+		$cds[-1]->[3] = $stop_codon->[3];
+		$translation_stop = $stop_codon->[3];
 	    }
+
 	}
-	if( @start_codons ) {
+	if( $start_codon ) {
 	    if( $strand_val > 0 ) {		
-#		warn("stop codon is ", join("\t", @{$stop_codons[0]}), "\n");
-		$cds[0]->[3] = $start_codons[0]->[3];
+		warn("start codon is ", join("\t", @{$start_codon}), "\n");
+		$cds[0]->[3] = $start_codon->[3];
+		$translation_start = $start_codon->[3];
 	    } else {
-		warn("start codon is ", join("\t", @{$start_codons[0]}), "\n");
-		$cds[0]->[4] = $start_codons[0]->[4];
+		warn("start codon is ", join("\t", @{$start_codon}), "\n");
+		$cds[0]->[4] = $start_codon->[4];
+		$translation_start = $start_codon->[4];
 	    }
 	}
-	for my $cds ( @cds ) {
-	    unless( defined $start_codon ) {
-		$start_codon = ( $strand_val > 0) ? $cds->[3] : $cds->[4];
-	    }
-	    # last writer wins so keep running this through
-	    # rather than worrying about grabbing last CDS after
-	    # this is through
-	    $stop_codon = ($strand_val > 0) ? $cds->[4] : $cds->[3];
-	    my $exon_ninth = sprintf("ID=%scds%06d;Parent=%s",
-				     $prefix,
-				     $counts{'CDS'}++,
-				     $mrna_id);
-	    if( $proteinid ) {
-		$proteinid = sprintf('"%s"',$proteinid) if $proteinid =~ /[;\s,]/;
-		$exon_ninth .= sprintf(";Name=%s",$proteinid);
-	    } 
-	    $cds = [$cds->[3], join("\t", @$cds, $exon_ninth)];
+	if ( $debug) {
+	  warn("CDS order is after :\n");
+	  for my $c ( @cds ) {
+	    warn(join("\t", @$c), "\n");
+	  }
 	}
-#	if( @stop_codons ) {
-#	    $stop_codon = ($strand_val > 0) ? $stop_codons[0]->[4] : $stop_codons[0]->[3];
-#	}
+
+	for my $cds_i ( @cds ) {
+	  unless( defined $translation_start ) {
+	    $translation_start = ( $strand_val > 0) ? $cds_i->[3] : $cds_i->[4];
+	  }
+	  # last writer wins so keep running this through
+	  # rather than worrying about grabbing last CDS after
+	  # this is through
+	  unless( defined $translation_stop ) {
+	    $translation_stop = ($strand_val > 0) ? $cds_i->[4] : $cds_i->[3];
+	  }
+	  my $exon_ninth = sprintf("ID=%scds%06d;Parent=%s",
+				   $prefix,
+				   $counts{'CDS'}++,
+				   $mrna_id);
+	  if ( $proteinid ) {
+	    $proteinid = sprintf('"%s"',$proteinid) if $proteinid =~ /[;\s,]/;
+	    $exon_ninth .= sprintf(";Name=%s",$proteinid);
+	  }
+	  $cds_i = [$cds_i->[3], join("\t", @$cds_i, $exon_ninth)];
+	}
+	if ( $debug) {
+	  warn("CDS order after ninth column is :\n");
+	  for my $c ( @cds ) {
+	    warn(join("\t", @$c), "\n");
+	  }
+	}
+
+	# making some utrs
 	my %utrs;
 	for my $exon ( sort { $a->[3] * $strand_val <=> 
-			      $b->[3] * $strand_val } 
+			      $b->[3] * $strand_val }
 		       @exons ) {
-	    # how many levels deep can you think?
-	    if( defined $stop_codon && defined $start_codon ) {
-		if( $strand_val > 0 ) {
-		    # 5' UTR on +1 strand
-		    if( $start_codon > $exon->[3] ) {
-			if( $start_codon > $exon->[4] ) {
-			    # whole exon is a UTR so push it all on
-			    push @{$utrs{'5utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   ( $exon->[0],
-				     $exon->[1],
-				     'five_prime_utr',
-				     $exon->[3],
-				     $exon->[4],
-				     '.',
-				     $strand,
-				     '.',
-				     sprintf("ID=%sutr5%06d;Parent=%s",
-					     $prefix,
-					     $counts{'5utr'}++,
-					     $mrna_id)))];
-			} else {
-			    # push the partial exon up to the start codon
-			    push @{$utrs{'5utr'}}, 
-			    [ $exon->[3],
-			      join("\t",
-				   $exon->[0],
-				   $exon->[1],
-				   'five_prime_utr',
-				   $exon->[3],
-				   $start_codon - 1,
-				   '.',
-				   $strand,
-				   '.',
-				   sprintf("ID=%sutr5%06d;Parent=%s",
-					   $prefix,
-					   $counts{'5utr'}++,
-					   $mrna_id)
-				   )];
-			}
-		    }
-		    #3' UTR on +1 strand
-		    if( $stop_codon < $exon->[4] ) {
-			if( $stop_codon < $exon->[3] ) {
-			    # whole exon is 3' UTR
-			    push @{$utrs{'3utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   ( $exon->[0],
-				     $exon->[1],
-				     'three_prime_utr',
-				     $exon->[3],
-				     $exon->[4],
-				     '.',
-				     $strand,
-				     '.',
-				     sprintf("ID=%sutr3%06d;Parent=%s",
-					     $prefix,
-					     $counts{'3utr'}++,
-					     $mrna_id)))];
-			} else { 
-			    # make UTR from partial exon
-			    push @{$utrs{'3utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   ( $exon->[0],
-				     $exon->[1],
-				     'three_prime_utr',
-				     $stop_codon +1,
-				     $exon->[4],
-				     '.',
-				     $strand,
-				     '.',
-				     sprintf("ID=%sutr3%06d;Parent=%s",
-					     $prefix,
-					     $counts{'3utr'}++,
-					     $mrna_id)))];
-			}
-		    } 
+	  # how many levels deep can you think? ...
+	  if ( defined $translation_start && defined $translation_stop ) {
+	    if ( $strand_val > 0 ) {
+	      # 5' UTR on +1 strand
+	      if ( $translation_start > $exon->[3] ) {
+		if ( $translation_start > $exon->[4] ) {
+		  # whole exon is a UTR so push it all on
+		  push @{$utrs{'5utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   ( $exon->[0],
+			     $exon->[1],
+			     'five_prime_utr',
+			     $exon->[3],
+			     $exon->[4],
+			     '.',
+			     $strand,
+			     '.',
+			     sprintf("ID=%sutr5%06d;Parent=%s",
+				     $prefix,
+				     $counts{'5utr'}++,
+				     $mrna_id)))];
 		} else {
-		    # 5' UTR on -1 strand
-		    if( $start_codon < $exon->[4] ) {
-			if( $start_codon < $exon->[3] ) {
-			    # whole exon is UTR
-			    push @{$utrs{'5utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   $exon->[0],
-				   $exon->[1],
-				   'five_prime_utr',
-				   $exon->[3],
-				   $exon->[4],
-				   '.',
-				   $strand,
-				   '.',
-				   sprintf("ID=%sutr5%06d;Parent=%s",
-					   $prefix,
-					   $counts{'5utr'}++,
-					   $mrna_id)) ];
-			} else {
-			    # push on part of exon up to the start codon 
-			    push @{$utrs{'5utr'}}, 
-			    [ $exon->[3], 
-			      join("\t",$exon->[0],
-				   $exon->[1],
-				   'five_prime_utr',
-				   $start_codon + 1,
-				   $exon->[4],
-				   '.',
-				   $strand,
-				   '.',
-				   sprintf("ID=%sutr5%06d;Parent=%s",
-					   $prefix,
-					   $counts{'5utr'}++,
-					   $mrna_id))];
-			}
-		    }		
-		    #3' UTR on -1 strand
-		    if( $stop_codon > $exon->[3] ) {
-			if( $stop_codon > $exon->[4] ) {
-			    # whole exon is 3' UTR
-			    push @{$utrs{'3utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   ( $exon->[0],
-				     $exon->[1],
-				     'three_prime_utr',
-				     $exon->[3],
-				     $exon->[4],
-				     '.',
-				     $strand,
-				     '.',
-				     sprintf("ID=%sutr3%06d;Parent=%s",
-					     $prefix,
-					     $counts{'3utr'}++,
-					     $mrna_id)))];
-			} else { 
-			    # make UTR from partial exon
-			    push @{$utrs{'3utr'}},
-			    [ $exon->[3],
-			      join("\t",
-				   ( $exon->[0],
-				     $exon->[1],
-				     'three_prime_utr',
-				     $exon->[3],
-				     $stop_codon -1,
-				     '.',
-				     $strand,
-				     '.',
-				     sprintf("ID=%sutr3%06d;Parent=%s",
-					     $prefix,
-					     $counts{'3utr'}++,
-					     $mrna_id)))];
-			}
-		    } 
+		  # push the partial exon up to the start codon
+		  push @{$utrs{'5utr'}}, 
+		    [ $exon->[3],
+		      join("\t",
+			   $exon->[0],
+			   $exon->[1],
+			   'five_prime_utr',
+			   $exon->[3],
+			   $translation_start - 1,
+			   '.',
+			   $strand,
+			   '.',
+			   sprintf("ID=%sutr5%06d;Parent=%s",
+				   $prefix,
+				   $counts{'5utr'}++,
+				   $mrna_id)
+			  )];
 		}
+	      }
+	      #3' UTR on +1 strand
+	      if ( $translation_stop < $exon->[4] ) {
+		if ( $translation_stop < $exon->[3] ) {
+		  # whole exon is 3' UTR
+		  push @{$utrs{'3utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   ( $exon->[0],
+			     $exon->[1],
+			     'three_prime_utr',
+			     $exon->[3],
+			     $exon->[4],
+			     '.',
+			     $strand,
+			     '.',
+			     sprintf("ID=%sutr3%06d;Parent=%s",
+				     $prefix,
+				     $counts{'3utr'}++,
+				     $mrna_id)))];
+		} else { 
+		  # make UTR from partial exon
+		  push @{$utrs{'3utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   ( $exon->[0],
+			     $exon->[1],
+			     'three_prime_utr',
+			     $stop_codon +1,
+			     $exon->[4],
+			     '.',
+			     $strand,
+			     '.',
+			     sprintf("ID=%sutr3%06d;Parent=%s",
+				     $prefix,
+				     $counts{'3utr'}++,
+				     $mrna_id)))];
+		}
+	      } 
+	    } else {
+	      # 5' UTR on -1 strand
+	      if ( $translation_start < $exon->[4] ) {
+		if ( $translation_start < $exon->[3] ) {
+		  # whole exon is UTR
+		  push @{$utrs{'5utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   $exon->[0],
+			   $exon->[1],
+			   'five_prime_utr',
+			   $exon->[3],
+			   $exon->[4],
+			   '.',
+			   $strand,
+			   '.',
+			   sprintf("ID=%sutr5%06d;Parent=%s",
+				   $prefix,
+				   $counts{'5utr'}++,
+				   $mrna_id)) ];
+		} else {
+		  # push on part of exon up to the start codon 
+		  push @{$utrs{'5utr'}}, 
+		    [ $exon->[3],
+		      join("\t",$exon->[0],
+			   $exon->[1],
+			   'five_prime_utr',
+			   $translation_start + 1,
+			   $exon->[4],
+			   '.',
+			   $strand,
+			   '.',
+			   sprintf("ID=%sutr5%06d;Parent=%s",
+				   $prefix,
+				   $counts{'5utr'}++,
+				   $mrna_id))];
+		}
+	      }		
+	      #3' UTR on -1 strand
+	      if ( $translation_stop > $exon->[3] ) {
+		if ( $translation_stop > $exon->[4] ) {
+		  # whole exon is 3' UTR
+		  push @{$utrs{'3utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   ( $exon->[0],
+			     $exon->[1],
+			     'three_prime_utr',
+			     $exon->[3],
+			     $exon->[4],
+			     '.',
+			     $strand,
+			     '.',
+			     sprintf("ID=%sutr3%06d;Parent=%s",
+				     $prefix,
+				     $counts{'3utr'}++,
+				     $mrna_id)))];
+		} else { 
+		  # make UTR from partial exon
+		  push @{$utrs{'3utr'}},
+		    [ $exon->[3],
+		      join("\t",
+			   ( $exon->[0],
+			     $exon->[1],
+			     'three_prime_utr',
+			     $exon->[3],
+			     $translation_stop -1,
+			     '.',
+			     $strand,
+			     '.',
+			     sprintf("ID=%sutr3%06d;Parent=%s",
+				     $prefix,
+				     $counts{'3utr'}++,
+				     $mrna_id)))];
+		}
+	      }
 	    }
-	    $exon = [$exon->[3],
-		     join("\t", @$exon, sprintf("ID=%sexon%06d;Parent=%s",
-						$prefix,
-						$counts{'exon'}++,
-						$mrna_id))];
+	  }
+	  $exon = [$exon->[3],
+		   join("\t", @$exon, sprintf("ID=%sexon%06d;Parent=%s",
+					      $prefix,
+					      $counts{'exon'}++,
+					      $mrna_id))];
 	}
 	if( $strand_val > 0 ) {
 	    if( exists $utrs{'5utr'} ) {
@@ -391,18 +417,18 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			   @{$utrs{'3utr'}}), "\n";
 	    }
 	}
-
+	
 	print join("\n", ( map { $_->[1] } sort { $a->[0] <=> $b->[0] }
 			   @exons, @cds)), "\n";
 	if( $strand_val > 0 ) {
-	    if( exists $utrs{'3utr'} ) {
-		print join("\n", map { $_->[1] } sort { $a->[0] <=> $b->[0] }
-			   @{$utrs{'3utr'}}), "\n";
-	    }
+	  if( exists $utrs{'3utr'} ) {
+	    print join("\n", map { $_->[1] } sort { $a->[0] <=> $b->[0] }
+		       @{$utrs{'3utr'}}), "\n";
+	  }
 	} else {
-	    if( exists $utrs{'5utr'} ) {
-		print join("\n", map { $_->[1] } sort { $a->[0] <=> $b->[0] }
-			   @{$utrs{'5utr'}}), "\n";
+	  if( exists $utrs{'5utr'} ) {
+	    print join("\n", map { $_->[1] } sort { $a->[0] <=> $b->[0] }
+		       @{$utrs{'5utr'}}), "\n";
 	    }
 	}
     }
