@@ -1,4 +1,6 @@
 #!/usr/bin/perl -w
+
+# tblastn -links -group
 use strict;
 use Getopt::Long;
 use Bio::DB::Fasta;
@@ -16,7 +18,7 @@ my $maxintron = 500;
 my $informat = 'wutab'; # wublast mformat 3 is default
 my $method = 'genewise';
 my %protein2genome = ('exonerate' =>
-		      "exonerate --model protein2genome --bestn 1 -E yes --showtargetgff  --maxintron %d -q %s -t %s ",
+		      "exonerate --model protein2genome --bestn 1 --showtargetgff  --maxintron %d -q %s -t %s ",
 		      'genewise' => 'genewise -silent -quiet -para -genesf %s -u %d -v %d %s %s',
 		      
 		      );
@@ -26,6 +28,7 @@ my ($genome,$pepfile);
 my $window = 500;  # window around target region
 my $gffver = 3;
 my $output;
+my $debug = 0;
 GetOptions(
 	   'o|out:s'         => \$output,
 	   'gff|gffver:s'    => \$gffver,
@@ -36,6 +39,7 @@ GetOptions(
 	   'w|window:i'      => \$window,
 	   'maxintron:i'     => \$maxintron,
 	   'm|method:s'      => \$method,
+	   'v|debug!'        => \$debug,
     );
 
 mkdir($tmpdir) unless -d $tmpdir;
@@ -64,17 +68,19 @@ for my $file ( @ARGV) {
 	my %lastseen;
 	my @hsps;
 	my $i = 0;
+
 	while(<$fh>) {
 	    chomp;
-	    next if(/^#/);
+	    next if(/^\#/);
 	    my ($q,$h,$e,$N,$Sprime,$S,
 		$alignlen,$nident,$npos,
 		$nmism, $pcident,$pcpos,$qgaps,$qgaplen,
 		$sgaps,$sgaplen,
 		$qframe,$qstart,$qend,
 		$sframe,$sstart,$send,
-		$group,$links) = split(/\t/,$_);
-
+		$group, $links) = split(/\t/,$_);
+	    warn("group is $group links are $links for $q $h $e\n") if $debug;
+	    $links =~ s/[\(\)]//g;
 	    if( @hsps &&
 		( $lastseen{'query'} ne $q ||
 		  $lastseen{'hit'}   ne $h ) ) {
@@ -85,9 +91,9 @@ for my $file ( @ARGV) {
 		}
 		@hsps = ();
 		$lastseen{'groups'} = {}; # reset the groups    
-#		last if $i++ > 3;
+		last if $debug && $i++ > 3;
 	    }
-	    $links =~ s/[\(\)]//g;
+
 	    $lastseen{'groups'}->{$links}++;
 	    ($sstart,$send) = sort { $a <=> $b} ($sstart,$send);
 	    push @hsps, { qstart => $qstart,
@@ -104,7 +110,7 @@ for my $file ( @ARGV) {
 			   $lastseen{'hit'},
 			   [ map { $hsps[$_] } split(/\-/,$group)]);
 	    }
-	}
+	}	
     }
 }
 
@@ -125,32 +131,33 @@ sub make_pair {
     $max = $len if $max > $len;
 
     my ( $chrom_frag,$run_cmd);
-    
+
     if( $method eq 'genewise' ) {
 	$chrom_frag = $gdb->get_Seq_by_acc($h);
     } else {
 	$chrom_frag = Bio::PrimarySeq->new(-id => 
-			       sprintf("%s_%d_%d_%s",
-				       $h,$min,$max,
-				       $srted[0]->{hstrand}),
-			       -seq => $gdb->seq($h,$min,$max));
+					   sprintf("%s_%d_%d_%s",
+						   $h,$min,$max,
+						   $srted[0]->{hstrand}),
+					   -seq => $gdb->seq($h,$min,$max));
     }
     my $pfile = File::Spec->catfile($tmpdir,'pep',$protein->id);
-    #warn($protein->id, " ", $chrom_frag->id, "\n");
+    warn($protein->id, " ", $chrom_frag->id, "\n") if $debug;
     if( ! -f $pfile ) {
 	Bio::SeqIO->new(-format => 'fasta',
 			-file   => ">$pfile")->write_seq($protein);
-    }
+      }
     my $gfile = File::Spec->catfile($tmpdir,'nt',$chrom_frag->id);
     if( ! -f $gfile ) {
 	Bio::SeqIO->new(-format => 'fasta',
 			-file   => ">$gfile")->write_seq($chrom_frag);
-    }
+      }
     if( $method eq 'genewise' ) {
 	my $strnd = $strand eq '-' ? '-trev' : '-tfor';
 	$run_cmd = sprintf($protein2genome{$method},
 			   $strnd,$min,$max,
 			   $pfile,$gfile);
+
     } elsif( $method eq 'exonerate')  {
 	$run_cmd = sprintf($protein2genome{$method},
 			   $maxintron,
@@ -158,26 +165,34 @@ sub make_pair {
     } else {
 	die "method $method unrecognized";
     }
-
+    warn("$run_cmd $method\n") if $debug; 
     open( my $runfh => "$run_cmd |") || die $!;
-    my $gw = Bio::Tools::Genewise->new(-fh => $runfh);
-    while (my $gene = $gw->next_prediction){
-	$gene->primary_tag('gene');
-	$gene->source_tag('Genewise');	
-	$out->write_feature($gene);
-	my @transcripts = $gene->transcripts;
-	foreach my $t(@transcripts){
-	    $t->primary_tag('mRNA');
-	    $t->source_tag('Genewise');
-	    $out->write_feature($t);
-	    my @exons =  $t->exons;	    
-	    foreach my $e(@exons){
-		$e->remove_tag('supporting_feature');
-		$e->source_tag('Genewise');
-		$e->primary_tag('CDS');
-		$out->write_feature($e);
+
+    if( $method eq 'genewise' ) {
+	my $gw = Bio::Tools::Genewise->new(-fh => $runfh);
+	while (my $gene = $gw->next_prediction){
+	    $gene->primary_tag('gene');
+	    $gene->source_tag('Genewise');	
+	    $out->write_feature($gene);
+	    my @transcripts = $gene->transcripts;
+	    foreach my $t(@transcripts){
+		$t->primary_tag('mRNA');
+		$t->source_tag('Genewise');
+		$out->write_feature($t);
+		my @exons =  $t->exons;	    
+		foreach my $e(@exons){
+		    $e->remove_tag('supporting_feature');
+		    $e->source_tag('Genewise');
+		    $e->primary_tag('CDS');
+                    if( $e->has_tag('phase') ) {
+		     $e->frame($e->get_tag_values('phase'));
+		     $e->remove_tag('phase');
+		    }
+   		    $out->write_feature($e);
+		}
 	    }
 	}
+    } elsif( $method eq 'exonerate'  ) {
+#	$out->write_feature();
     }
-
 }
