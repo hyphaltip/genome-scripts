@@ -29,6 +29,8 @@ my $window = 500;  # window around target region
 my $gffver = 3;
 my $output;
 my $debug = 0;
+my $best_only = 1;
+my $evalue = 1e-50;
 GetOptions(
 	   'o|out:s'         => \$output,
 	   'gff|gffver:s'    => \$gffver,
@@ -40,6 +42,7 @@ GetOptions(
 	   'maxintron:i'     => \$maxintron,
 	   'm|method:s'      => \$method,
 	   'v|debug!'        => \$debug,
+	   'best!'           => \$best_only,
     );
 
 mkdir($tmpdir) unless -d $tmpdir;
@@ -91,7 +94,7 @@ for my $file ( @ARGV) {
 		}
 		@hsps = ();
 		$lastseen{'groups'} = {}; # reset the groups    
-		last if $debug && $i++ > 3;
+		#last if $debug && $i++ > 3;
 	    }
 
 	    $lastseen{'groups'}->{$links}++;
