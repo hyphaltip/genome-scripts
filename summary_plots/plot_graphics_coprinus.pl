@@ -14,7 +14,7 @@ use SVG;
 # SHOULD WE GENERATE THE PLOT WITH GD OR SVG?
 # This should just be a command line parameter
 
-my $GD  = 1;
+my $GD  = 0;
 
 GetOptions(
 	   'gd!' => \$GD);
@@ -70,6 +70,7 @@ use constant BLOCKS_COLOR_REV  => 'goldenrod';
 
 use constant HAPLOTYPE_HOT_COLOR  => 'red';
 use constant HAPLOTYPE_COLD_COLOR  => 'steelblue';
+use constant HAPLOTYPE_NEUTRAL_COLOR  => 'darkgrey';
 
 use constant GENES_COLOR     => 'red';
 use constant ORPHANS_COLOR   => 'varP4';
@@ -82,8 +83,8 @@ use constant P450_DOMAINS_COLOR     => 'steelblue';
 use constant WD40_DOMAINS_COLOR     => 'steelblue';
 
 use constant INTERGENIC_COLOR => 'varP4';
-use constant TRNA_COLOR      => 'varA3';
-use constant TE_REPEAT_COLOR => 'varB3';
+use constant TRNA_COLOR      => 'limegreen';
+use constant TE_REPEAT_COLOR => 'brown';
 use constant REPEATS_COLOR   => 'varB1';
 
 use constant FISH_BLOCKS_COLOR => 'darkgreen';
@@ -179,7 +180,6 @@ my %CHROMS;
     my $i = 0;
     while( my $seq = $in->next_seq ) {
 	my $id = $seq->display_id;
-#	$id =~ s/cimm(_RS_\d+)?\.(\d+)//;
 	$CHROMS{$id}= [$i++, $seq->length];
     }
 }
@@ -248,7 +248,7 @@ my $settings;
 
 for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
 	       keys %CHROMS) {
-    next unless $chrom =~ /^Chr_/;
+    next if $chrom =~ /^U/;
     warn( "Generating $chrom plot...\n");
     # The class of the img object depends on what we are trying to print.
     my $img = establish_image();
@@ -263,19 +263,21 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 		count  => 0,
 		img    => $img };
 
-    plot('repeats',$repeats,'total',REPEATS_COLOR);
+#    plot('repeats',$repeats,'total',REPEATS_COLOR);
     plot('te_repeat', $te,'total',TE_REPEAT_COLOR);
     plot('tRNA',$trna,'total',TRNA_COLOR);
+    plot_haplotype_blocks($haplotype_blocks,
+			  HAPLOTYPE_HOT_COLOR,HAPLOTYPE_COLD_COLOR,
+			  HAPLOTYPE_NEUTRAL_COLOR,
+			  $ssrs);  
     plot('genes',$genes,'total',GENES_COLOR);
     plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
     plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
     plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
-    plot_haplotype_blocks($haplotype_blocks,
-			  HAPLOTYPE_HOT_COLOR,HAPLOTYPE_COLD_COLOR,
-			  $ssrs);  
+
     plot_blocks($fish_blocks,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
     plot_blocks($fish_blocks_all,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
-    plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR);
+#    plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR);
 
     # Draw some header information and the xscale, which is
     # always in megabases
@@ -936,10 +938,11 @@ sub plot_blocks {
 }
 
 sub plot_haplotype_blocks {
-    my ($obj,$hicolor,$cicolor,$markers) = @_;
-
-    my $hcolor = $settings->{$hicolor};
-    my $ccolor = $settings->{$cicolor};
+    my ($obj,$hicolor,$cicolor,$neutralcolor,$markers) = @_;
+    
+    my %colormap = ( 'HOT' => $settings->{$hicolor},
+		     'COLD' => $settings->{$cicolor},
+		     'NEUTRAL' => $settings->{$neutralcolor} );
     my $black = $settings->{black};
 
     my $chrom  = $CONFIG->{chrom};
@@ -962,6 +965,7 @@ sub plot_haplotype_blocks {
     for my $block (@blocks) {
 	$total++;
 	my ($start,$stop,$target,$tlength,$hot_cold) = @$block;
+	# hot_cold will be -1,0,1
 	($start,$stop) = ($stop,$start) if ($start > $stop);
 	my $left   = ($start * $xscale) + TRACK_LEFT;
 	my $right  = ($stop * $xscale) + TRACK_LEFT;
@@ -969,14 +973,14 @@ sub plot_haplotype_blocks {
 	my $bottom = $track_baseline + TRACK_HEIGHT;
 	if ($GD) {
 	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,
-				  $hot_cold  ? $hcolor : $ccolor);
+				  $colormap{$hot_cold});
 	} else {
 	    $img->rectangle(x=>$left,y=>$top,
 			    width  => $right-1-$left,
 			    height => $bottom-$top,
 			    id     => $target."-$total-" . $start .'-' . $stop,
-			    stroke => $hot_cold ? $hcolor : $ccolor,
-			    fill   => $hot_cold ? $hcolor : $ccolor);
+			    stroke => $colormap{$hot_cold},
+			    fill   => $colormap{$hot_cold});
 	}	 
 	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
     }
@@ -1055,7 +1059,7 @@ sub draw_bounding {
 
     if ($GD) {
       $img->line($left,$tick_top,$left,$tick_bottom,$settings->{black});
-      $img->string(gdTinyFont,
+      $img->string(gdSmallFont,
 		   $left-length($label),
 		   $tick_bottom + 2,$label,$settings->{black});
     } else {
@@ -1149,7 +1153,8 @@ sub establish_settings {
 		    darkgreen => $img->colorAllocate(0,51,0),
 		    darkred => $img->colorAllocate(153,0,0),
 		    seablue => $img->colorAllocate(0,102,204),
-		    
+		    limegreen => $img->colorAllocate(51,255,51),
+		    darkgrey => $img->colorAllocate(170,170,170),
 		    # *** Primary Color:
 
 		    # var. 1 = #133AAC = rgb(19,58,172)
@@ -1211,9 +1216,11 @@ sub establish_settings {
 		  black  => 'rgb(0,0,0)',
 		  purple => 'rgb(200,100,200)',
 		  grey   => 'rgb(230,230,230)',
+		  darkgrey => 'rgb(170,170,170)',
 		  pink   => 'rgb(204,000,204)',
 		  sea    => 'rgb(000,102,102)',
 		  orange => 'rgb(255,153,000)',
+		  limegreen => 'rgb(51,255,51)',
 
 		    # *** Primary Color:
 
@@ -1350,7 +1357,7 @@ sub parse {
 
 	# Is the value out of range?
 	if ($bin_val > $CHROMS{$group_val}[1]) {	
-	    print STDERR "Positional value out of range for chromosome...$bin_val\t",
+	    print STDERR "Positional value out of range for chromosome $group_val...$bin_val\t",
 	    $CHROMS{$group_val}[1],"\n";
 	    next;
 	}
@@ -1472,7 +1479,7 @@ sub parse_haplotype_blocks {
     my $target  = $fields[$cols->{'type'}];
     my $desig   = $fields[$cols->{'designation'}];
     push (@{$self->{$chrom}},[$start,$stop,$target,abs($stop-$start),
-			      $desig eq 'HOT']);
+			      $desig]);
   }
   return;
 }
