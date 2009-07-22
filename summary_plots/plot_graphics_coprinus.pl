@@ -48,19 +48,16 @@ use constant ORTHOS   => 'coprinus_orthologs.tab';
 use constant ORPHANS  => 'coprinus_orphans.tab';
 use constant PARALOGS => 'coprinus_paralogs.tab';
 use constant SSGENES  => 'coprinus_only.tab';
-use constant P450_DOMAINS  => 'domains/p450.dat';
-use constant KINASE_DOMAINS  => 'domains/Pkinase.dat';
-use constant WD40_DOMAINS  => 'domains/WD40.dat';
 
 use constant FISH_SIGNIF_BLOCKS => 'coprinus_FISH_synteny.tab';
-use constant FISH_BLOCKS_ALL    => 'coprinus_FISH_synteny_all.tab';
+use constant FISH_BLOCKS_ALL    => 'coprinus_FISH_synteny_original.tab';
 use constant LB_BLOCKS     => 'cc-lb_synteny.tab';
 use constant PC_BLOCKS     => 'cc-pc_synteny.tab';
 
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 
-use constant HAPLOTYPE_BLOCKS => 'haplotype_blocks.tab';
+use constant RECOMBINATION_RATES => 'recombination_rates.tab';
 use constant SSR => 'ssr.tab';
 use constant TRNA => 'coprinus_trna.tab';
 use constant TE_REPEAT => 'coprinus_TE_repeats.tab';
@@ -68,15 +65,14 @@ use constant TE_REPEAT => 'coprinus_TE_repeats.tab';
 use constant BLOCKS_COLOR  => 'steelblue';
 use constant BLOCKS_COLOR_REV  => 'goldenrod';
 
-use constant HAPLOTYPE_HOT_COLOR  => 'red';
-use constant HAPLOTYPE_COLD_COLOR  => 'steelblue';
-use constant HAPLOTYPE_NEUTRAL_COLOR  => 'darkgrey';
+use constant RECOMBINATION_HOT_COLOR  => 'red';
+use constant RECOMBINATION_COLD_COLOR  => 'steelblue';
+use constant RECOMBINATION_NEUTRAL_COLOR  => 'darkgrey';
 
-use constant GENES_COLOR     => 'red';
-use constant ORPHANS_COLOR   => 'varP4';
+use constant GENES_COLOR     => 'darkorange';
+use constant ORPHANS_COLOR   => 'orange';
 use constant ORTHOS_COLOR    => 'varP2';
-use constant PARALOGS_COLOR  => 'varP3';
-
+use constant PARALOGS_COLOR  => 'red';
 
 use constant KINASE_DOMAINS_COLOR   => 'steelblue';
 use constant P450_DOMAINS_COLOR     => 'steelblue';
@@ -87,10 +83,11 @@ use constant TRNA_COLOR      => 'limegreen';
 use constant TE_REPEAT_COLOR => 'brown';
 use constant REPEATS_COLOR   => 'varB1';
 
-use constant FISH_BLOCKS_COLOR => 'darkgreen';
+use constant FISH_BLOCKS_COLOR => 'lightgreen';
+use constant FISH_SIGNIFBLOCKS_COLOR => 'darkgreen';
 
 # Font sizes...
-use constant LABEL_SIZE    => '8';
+use constant LABEL_SIZE    => '18';
 
 # These are not being used right now
 my %labels = ( 
@@ -106,11 +103,11 @@ my %labels = (
 	       lb_blocks       => 'Lbic Mercator Syntenic blocks',
 	       repeats         => 'All Repetitive elements / 50 kb',
 	       te_repeat       => 'Transposable elements / 50 kb',
-	       haplotype       => 'Haplotype blocks',
+	       recombination_rates => 'Recombination rate',
 	       ssr             => 'SSRs',
 	       tRNA            => 'tRNA genes / 50 kb',
-	       fish_blocks	=> 'FISH Signif synteny blocks',
-	       fish_blocks_all	=> 'FISH synteny blocks',
+	       fish_blocks     => 'FISH synteny blocks',
+	       fish_blocks_all  => 'FISH synteny blocks',
 	       );
 my %ylabels = (
 	       genes           => 'genes',
@@ -127,11 +124,11 @@ my %ylabels = (
 	       kinase_domains  => 'kinasedomains',
 	       p450_domains    => 'p450domains',
 	       wd40_domains    => 'wd40domains',
-	       haplotype       => 'haplotype',
+	       recombination_rates       => 'recombination',
 	       ssr             => 'SSRs',
 	       tRNA            => 'tRNA',
-	       fish_blocks	=> 'fish_blocks_signif',
-	       fish_blocks_all	=> 'fish_blocks',
+	       fish_blocks     => 'fish_blocks',
+	       fish_blocks_all => 'fish_blocks_all',
 	       );
 
 my %units = (
@@ -151,18 +148,18 @@ my %units = (
 	     kinase_domains  => 'Kinase Domains',
 	     p450_domains    => 'P450 Domains',
 	     wd40_domains    => 'WD40 Domains',
-	     haplotype       => 'Haploype blocks',
+	     recombination_rates       => 'Recombination rates',
 	     ssr             => 'SSRs',
 	     tRNA            => 'tRNA genes',
-	     fish_blocks  => 'FISH blocks signif',
-	     fish_blocks_all=> 'FISH blocks'
+	     fish_blocks     => 'FISH blocks',
+	     fish_blocks_all     => 'FISH blocks',
 	     );
 
 # IMAGE CONSTANTS
-use constant TOP           => 35;
-use constant TRACK_HEIGHT  => 70;
-use constant TRACK_SPACE   => 30;
-use constant TOTAL_TRACKS  => 13;
+use constant TOP           => 70;
+use constant TRACK_HEIGHT  => 90;
+use constant TRACK_SPACE   => 40;
+use constant TOTAL_TRACKS  => 10;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
 use constant TRACK_LEFT    => 40;
@@ -225,15 +222,16 @@ my $intergenic = Windows->new('intergenic'); # intergenic distances
 $intergenic->parse(File::Spec->catfile($DIR,INTERGENIC),
 		   qw(chrom chrom_start length), sub { $_[0] < 1000 && $_[0] > 10 } );
 
-my $haplotype_blocks = Windows->new('haplotype'); # haplotype
-$haplotype_blocks->parse_haplotype_blocks(File::Spec->catfile($DIR,HAPLOTYPE_BLOCKS));
+my $recombination_rates = Windows->new('recombination_rates'); # recombination rates
+$recombination_rates->parse_recombination_rates(File::Spec->catfile
+						($DIR,RECOMBINATION_RATES));
 
 my $ssrs = Windows->new('ssr'); #SSRs
 $ssrs->parse_range(File::Spec->catfile($DIR,SSR),
 		   qw(chrom start stop));
 
-my $fish_blocks = Windows->new('fish_blocks'); #FISH blocks
-$fish_blocks->parse_blocks(File::Spec->catfile($DIR,FISH_SIGNIF_BLOCKS),
+my $fish_blocks_signif = Windows->new('fish_blocks'); #FISH blocks
+$fish_blocks_signif->parse_blocks(File::Spec->catfile($DIR,FISH_SIGNIF_BLOCKS),
 			   qw(chrom start stop block));
 my $fish_blocks_all = Windows->new('fish_blocks_all'); #FISH blocks
 $fish_blocks_all->parse_blocks(File::Spec->catfile($DIR,FISH_BLOCKS_ALL),
@@ -266,17 +264,18 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 #    plot('repeats',$repeats,'total',REPEATS_COLOR);
     plot('te_repeat', $te,'total',TE_REPEAT_COLOR);
     plot('tRNA',$trna,'total',TRNA_COLOR);
-    plot_haplotype_blocks($haplotype_blocks,
-			  HAPLOTYPE_HOT_COLOR,HAPLOTYPE_COLD_COLOR,
-			  HAPLOTYPE_NEUTRAL_COLOR,
+    plot_recombination_rates($recombination_rates,
+			  RECOMBINATION_HOT_COLOR,RECOMBINATION_COLD_COLOR,
+			  RECOMBINATION_NEUTRAL_COLOR,
 			  $ssrs);  
     plot('genes',$genes,'total',GENES_COLOR);
     plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
     plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
     plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
 
-    plot_blocks($fish_blocks,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
-    plot_blocks($fish_blocks_all,FISH_BLOCKS_COLOR,FISH_BLOCKS_COLOR);
+    plot_fish_blocks($fish_blocks_all,$fish_blocks_signif,
+		     FISH_BLOCKS_COLOR,
+		     FISH_SIGNIFBLOCKS_COLOR);
 #    plot_barplot('intergenic',$intergenic,'total',INTERGENIC_COLOR);
 
     # Draw some header information and the xscale, which is
@@ -284,12 +283,13 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
     my $width   = $CHROMS{$chrom}->[1];
     my $scaled = TRACK_LEFT + ($xscale * $width);
     my $height = TOTAL_TRACKS * (TRACK_HEIGHT + TRACK_SPACE) + 15;
-    my $header = $chrom;
+    my $header = "Chromosome $chrom";
     my $footer = "Megabase pairs";
 
     if ($GD) {
 	# Place the header on the right side of the image
-	$img->string(gdLargeFont,$scaled - (length($header) * gdLargeFont->width) - 2,
+	$img->string(gdLargeFont,
+		     $scaled - (length($header) * gdLargeFont->width) - 2,
 		     5,$header,$settings->{black});
 	# ...or place it on the left edge...
 	#$img->string(gdGiantFont,TRACK_LEFT,
@@ -307,8 +307,8 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 		       'font-style' => 'bold'
 		       },
 		   id=>"$header",
-		   x=>TRACK_LEFT,
-		   y=>10)->cdata($header);
+		   x=>5,
+		   y=>40)->cdata($header);
 
 	$img->text(
 		   style=> {
@@ -370,7 +370,7 @@ sub plot {
     # print STDERR join("\t",$left,$top,$right,$bottom),"\n";
   }
   # Draw rectangles for each
-  draw_yticks($track_baseline,$yscale,$yscale,'5',$obj->{ylabel});
+  draw_yticks($track_baseline,$yscale,$yscale,'5',$obj->{ylabel},2);
   draw_bounding($track_baseline,$obj);
 
   $CONFIG->{count}++;
@@ -390,12 +390,17 @@ sub draw_yticks {
   my $count  = $CONFIG->{count};
   my $black = $settings->{black};
   $sigfigs_count ||= 1;
-
+  
   # Draw y-scale ticks...
   my $tick_left  = TRACK_LEFT;
-  my $tick_right = TRACK_LEFT + 4;
+  my $tick_right = TRACK_LEFT - 4;
+  # HACK HACK BEGIN
+  # Coprinus specific hack
+  $total_ticks = 1;
+  $sigfigs_count = 0;
+  # HACK HACK END
 
-  # It's printing the values in backwards order
+# It's printing the values in backwards order
   my $interval = TRACK_HEIGHT / $total_ticks;
   my $sigfigs = "%.".$sigfigs_count."f";  # how many significant figs for the ylabel
                     # to avoid the ylabel from not being specific
@@ -407,6 +412,9 @@ sub draw_yticks {
   if ( 0.9 >= ( $interval * $total_ticks) / $yscale_top ) {
       $sigfigs = "%.2f";
   } 
+  if( $sigfigs_count == 0 ) {
+      $sigfigs = "%2d";
+  }
   
   for (my $i=0; $i <= $total_ticks;$i++) {
     my $top = $track_baseline + TRACK_HEIGHT - ($i * $interval);
@@ -417,9 +425,9 @@ sub draw_yticks {
     $label ||= '0';
     if ($GD) {
       $img->line($tick_left,$top,$tick_right,$top,$settings->{black});
-      $img->string(gdTinyFont,
-		   $tick_left- ( length($formatted_label) * gdTinyFont->width) - 4,
-		   ($top - gdTinyFont->height),$formatted_label,$settings->{black});
+      $img->string(gdSmallFont,
+		   $tick_left- ( length($formatted_label) * gdSmallFont->width) - 4,
+		   ($top - gdSmallFont->height),$formatted_label,$settings->{black});
     } else {
       $img->line(x1 => $tick_left, y1 => $top,
 		 x2 => $tick_right,y2 => $top,
@@ -431,9 +439,9 @@ sub draw_yticks {
 		 style=> {
 			  'font' => 'Helvetica',
 			  'font-size' => LABEL_SIZE,
-			 },
+		      },
 		 id=>"$ylabel-$formatted_label-".$i,
-		 x=>$tick_left-length($formatted_label) - 22,
+		 x=>$tick_left-length($formatted_label) - 20, # -22
 		 y=>$top+3)->cdata($formatted_label);
     }
   }
@@ -447,9 +455,9 @@ sub draw_yticks {
 
 	  if ($GD) {
 	      $img->line($tick_left,$top,$tick_right,$top,$settings->{black});
-	      $img->string(gdTinyFont,
-			   $tick_left- ( length($formatted_label) * gdTinyFont->width) - 4,
-			   ($top - gdTinyFont->height),$formatted_label,$settings->{black});
+	      $img->string(gdSmallFont,
+			   $tick_left- ( length($formatted_label) * gdSmallFont->width) - 4,
+			   ($top - gdSmallFont->height),$formatted_label,$settings->{black});
 	  } else {
 	      $img->line(x1 => $tick_left, y1 => $top,
 			 x2 => $tick_right,y2 => $top,
@@ -661,20 +669,20 @@ sub plot_gmap {
 
   if ($GD) {
     $img->line($tick_left,$track_baseline,$tick_right,$track_baseline,$settings->{black});
-    $img->string(gdTinyFont,$tick_right+4,$track_baseline,,# - ($fontheight/2),
+    $img->string(gdSmallFont,$tick_right+4,$track_baseline,,# - ($fontheight/2),
 		 '25',$settings->{black});
     # The labels still might be shifted up inappropriately
     $img->line($tick_left,
 	       $track_baseline + (TRACK_HEIGHT/2),$tick_right,
 	       $track_baseline + (TRACK_HEIGHT/2),
 	       $settings->{black});
-    $img->string(gdTinyFont,$tick_right+4,$track_baseline + (TRACK_HEIGHT/2),# - ($fontheight/2),
+    $img->string(gdSmallFont,$tick_right+4,$track_baseline + (TRACK_HEIGHT/2),# - ($fontheight/2),
 		 '0',$settings->{black});
     $img->line($tick_left,
 	       $track_baseline + (TRACK_HEIGHT),$tick_right,
 	       $track_baseline + (TRACK_HEIGHT),
 	       $settings->{black});
-    $img->string(gdTinyFont,$tick_right+4,$track_baseline + (TRACK_HEIGHT),# - ($fontheight/2),
+    $img->string(gdSmallFont,$tick_right+4,$track_baseline + (TRACK_HEIGHT),# - ($fontheight/2),
 		 '-25',$settings->{black});
     # Draw the unit label on the right side of the chart
     $img->string(gdMediumBoldFont,$tick_right+14,$track_baseline + (TRACK_HEIGHT/2)
@@ -937,7 +945,87 @@ sub plot_blocks {
     return;
 }
 
-sub plot_haplotype_blocks {
+sub plot_fish_blocks {
+    my ($obj1,$obj2,$icolor1,$icolor2) = @_;
+    my $color1 = $settings->{$icolor1};
+    my $color2 = $settings->{$icolor2};
+    my $black = $settings->{black};
+
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
+
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
+    if( ! exists $obj1->{$chrom} ) {
+	warn( " no chrom $chrom available\n");
+    }
+    my @blocks = @{$obj1->{$chrom} || []};
+
+    # assume that the strand is the majority of blocks 
+
+    my %majstrand;
+    { 
+	my %c;  
+	for my $block (@blocks) {	  
+	    my ($start,$end,$target,$tlength,$tstrand) = @$block;
+	    $c{$target}->{$tstrand} += $tlength;
+	}
+	while( my ($target,$pieces) = each %c ) {
+	    ($majstrand{$target}) = sort { $pieces->{$b} <=> $pieces->{$a} } keys %{$pieces};
+	}
+    }
+
+    my $total;
+    for my $block (@blocks) {
+	$total++;
+	my ($start,$stop,$target,$tlength,$tstrand) = @$block;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,$color1);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  =>$right-1-$left,
+			    height =>$bottom-$top,
+			    id     =>$obj1->{dumped_file}."-$total-" . $start .'-' . $stop,
+			    stroke => $color1,
+			    fill   => $color1);
+	}	 
+	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
+    }
+    @blocks = @{$obj2->{$chrom} || []};
+
+    for my $block (@blocks) {
+	$total++;
+	my ($start,$stop,$target,$tlength,$tstrand) = @$block;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,$color2);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  =>$right-1-$left,
+			    height =>$bottom-$top,
+			    id     =>$obj2->{dumped_file}."-$total-" . $start .'-' . $stop,
+			    stroke => $color2,
+			    fill   => $color2);
+	}	 
+	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
+    }
+
+    draw_bounding($track_baseline,$obj2);
+    $CONFIG->{count}++;
+    return;
+}
+
+sub plot_recombination_rates {
     my ($obj,$hicolor,$cicolor,$neutralcolor,$markers) = @_;
     
     my %colormap = ( 'HOT' => $settings->{$hicolor},
@@ -1021,7 +1109,7 @@ sub draw_bounding {
   my $chrom  = $CONFIG->{chrom};
   my $xscale = $CONFIG->{xscale};
   my $img    = $CONFIG->{img};
-  my $count  = $CONFIG->{count};
+  my $count  = $CONFIG->{count}; 
 
   my $width  = $CHROMS{$chrom}[1];
   my $left   = TRACK_LEFT;
@@ -1038,9 +1126,9 @@ sub draw_bounding {
 		    y     =>$top,
 		    width =>$right-$left,
 		    height=>$bottom-$top,
-		    id=>$track_label,
+		    id  => $track_label,
 		    stroke=>$settings->{black},
-		    'fill-opacity'=>0);
+		    'fill-opacity' => 0);
   }
 
   # Draw xscale tickmarks every million basepairs
@@ -1077,7 +1165,7 @@ sub draw_bounding {
 			 },
 		 id=>"$track_label-$label MBp",
 		 x=>$left-3,
-		 y=>$tick_bottom + 10)->cdata($label);
+		 y=>$tick_bottom + 18)->cdata($label);
     }
   }
   # Generate the track label
@@ -1101,7 +1189,7 @@ sub draw_bounding {
     $img->text(
 	       style=> {
 			'font' => 'Helvetica',
-			'font-size' => 14,
+			'font-size' => 22,
 		       },
 	       id=>"$track_label-main label",
 	       x=>$label_left,
@@ -1148,10 +1236,13 @@ sub establish_settings {
 		    pink   => $img->colorAllocate(204,000,204),
 		    sea    => $img->colorAllocate(000,102,102),
 		    orange => $img->colorAllocate(255,153,000),
+		    darkorange => $img->colorAllocate(255,102,000),
 		    darkblue => $img->colorAllocate(6,38,111),
 		    medblue  => $img->colorAllocate(42,68,128),
 		    darkgreen => $img->colorAllocate(0,51,0),
+		    lightgreen => $img->colorAllocate(0,153,0),
 		    darkred => $img->colorAllocate(153,0,0),
+		    lightred => $img->colorAllocate(204,51,51),
 		    seablue => $img->colorAllocate(0,102,204),
 		    limegreen => $img->colorAllocate(51,255,51),
 		    darkgrey => $img->colorAllocate(170,170,170),
@@ -1220,8 +1311,11 @@ sub establish_settings {
 		  pink   => 'rgb(204,000,204)',
 		  sea    => 'rgb(000,102,102)',
 		  orange => 'rgb(255,153,000)',
+		  darkorange => 'rgb(255,102,000)',
 		  limegreen => 'rgb(51,255,51)',
-
+		  lightgreen=> 'rgb(0,153,0)',
+		  lightred => 'rgb(204,51,51)',
+		    
 		    # *** Primary Color:
 
 		    # var. 1 = #133AAC = rgb(19,58,172)
@@ -1457,7 +1551,7 @@ sub parse_range {
   return;
 }
 
-sub parse_haplotype_blocks {
+sub parse_recombination_rates {
   my ($self,$file) = @_;
   print STDERR "parsing: $file ...\n";
   my $cols = fetch_columns($file);
