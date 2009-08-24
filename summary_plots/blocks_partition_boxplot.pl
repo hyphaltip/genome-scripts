@@ -2,7 +2,7 @@
 use strict;
 
 use Getopt::Long;
-use Bio::DB::SeqFeature;
+use Bio::SeqIO;
 my $debug = 0;
 
 
@@ -12,7 +12,7 @@ use constant ORPHANS  => 'coprinus_orphans.tab';
 use constant PARALOGS => 'coprinus_paralogs.tab';
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
-use constant HAPLOTYPES => 'haplotype_blocks.csv';
+use constant HAPLOTYPES => 'recombination_rates.tab';
 my $telomere_distance = '0.15';
 my $DIR = 'plot';
 my $odir = 'chrom_summary';
@@ -22,16 +22,13 @@ GetOptions(
 
 
 my $dir = shift;
-my $db = Bio::DB::SeqFeature::Store->new(-adaptor => 'berkeleydb',
-					 -dir     => $dir);
-
 my %CHROMS;
 {
-    my $i = 0;
-    for my $chrom ( sort { $a->id cmp $b->id } 
-		    $db->get_features_by_type('scaffold') ) {
-	$CHROMS{$chrom->seq_id} = [$i++,$chrom->length];	
-    }
+ my $seq = Bio::SeqIO->new(-format => 'fasta', -file=> "$DIR/genome.fa");
+ my $i = 0;
+ while( my $s = $seq->next_seq ) {
+   $CHROMS{$s->display_id} = [$i++,$s->length];   
+ }
 }
 
 my $genes = Windows->new('genes');
@@ -74,6 +71,7 @@ open(my $blocks => (File::Spec->catfile($DIR,HAPLOTYPES))) || die $!;
 my %blocks;
 my $block_hdr = <$blocks>;
 while(<$blocks>) {
+    next if /^#/;
     my @line = split;
     push @{$blocks{$line[0]}->{$line[5]}}, [$line[1],$line[2]];
 }
@@ -83,13 +81,15 @@ for my $dat ( keys %dat ) {
 
     open(my $coldfh => ">$odir/$dat\_cold.dat") || die $!;
     print $coldfh join("\t",qw(CHROM BIN TOTAL)),"\n";
-    
+
+    open(my $neutralfh => ">$odir/$dat\_neutral.dat") || die $!;    
+    print $neutralfh join("\t",qw(CHROM BIN TOTAL)),"\n";
+
     for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
 		   keys %CHROMS) {
-	next if $chrom !~ /Chr/i;
-	warn( "Processing $chrom ...\n");
-	next unless $chrom =~ /Chr/i;
-	print "$chrom ", $CHROMS{$chrom}->[1], "\n";
+	next if $chrom =~ /^U/i;
+#	warn( "Processing $chrom ...\n");
+#	print "$chrom ", $CHROMS{$chrom}->[1], "\n";
 	for my $blocks ( @{$blocks{$chrom}->{'HOT'}} ) {
 	    my $bins = &process_lumped($dat{$dat},$chrom,
 				       @$blocks);	    
@@ -100,13 +100,26 @@ for my $dat ( keys %dat ) {
 				       @$blocks);	    
 	    print $coldfh join("\n",@$bins),"\n";
 	}
+	for my $blocks ( @{$blocks{$chrom}->{'NEUTRAL'}} ) {
+	    my $bins = &process_lumped($dat{$dat},$chrom,
+				       @$blocks);	    
+	    print $neutralfh join("\n",@$bins),"\n";
+	}
+	
     }
     open(R, ">$odir/coldhot_$dat.R") || die $!;
     printf R "%scold <- read.table(\"%s_cold.dat\",header=T)\n",$dat,$dat;
     printf R "%shot <- read.table(\"%s_hot.dat\",header=T)\n",$dat,$dat;
-    printf R "pdf(\"coldhot_%s.pdf\")\n",$dat;
-    printf R "boxplot(%scold\$TOTAL,%shot\$TOTAL,main=\"%s Cold-Hot Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\"))\n",$dat,$dat,$dat;
+    printf R "%sneutral <- read.table(\"%s_neutral.dat\",header=T)\n",$dat,$dat;
+    printf R "pdf(\"cold_hot_neutral_%s.pdf\")\n",$dat;
+    printf R "boxplot(%scold\$TOTAL,%shot\$TOTAL,%sneutral\$TOTAL,main=\"%s Cold-Hot-Neutral Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\",\"Neutral\"))\n",$dat,$dat,$dat,$dat;
+    printf R "summary(%shot\$TOTAL)\n",$dat;
+    printf R "summary(%sneutral\$TOTAL)\n",$dat;
+    printf R "summary(%scold\$TOTAL)\n",$dat;
     printf R "ks.test(%scold\$TOTAL,%shot\$TOTAL)\n",$dat,$dat;
+    printf R "ks.test(%shot\$TOTAL,%sneutral\$TOTAL)\n",$dat,$dat;
+    printf R "ks.test(%scold\$TOTAL,%sneutral\$TOTAL)\n",$dat,$dat;
+    
 }
 
 sub process_lumped {
@@ -128,8 +141,8 @@ package Windows;
 
 use List::Util qw(sum max);
 # constants for sliding windows
-use constant WINDOW        => 20_000;
-use constant STEP          => 20_000;
+use constant WINDOW        => 50_000;
+use constant STEP          => 50_000;
 
 sub new {
   my ($self,$label) = @_;
@@ -164,7 +177,7 @@ sub parse {
 
 	# Is the value out of range?
 	if ($bin_val > $CHROMS{$group_val}[1]) {	
-	    print STDERR "Positional value out of range for chromosome...$bin_val\t",
+	    print STDERR "Positional value out of range for chromosome $group_val...$bin_val\t",
 	    $CHROMS{$group_val}[1],"\n";
 	    next;
 	}
