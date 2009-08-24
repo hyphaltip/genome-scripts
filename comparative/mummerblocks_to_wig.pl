@@ -43,7 +43,7 @@ GetOptions('v|verbose!' => \$debug,
 if( ! defined $afile ) {
     if( $type =~ /FASALN|MSA/i ) {
 	($afile,$aformat,$seqformat) = qw(output.mfa fasta fasta);
-	$refidx = 0;
+	$refidx = 1;
 	$type = 'msa';
     } else {
 	$type = 'search';
@@ -165,6 +165,7 @@ for my $subdir ( readdir(DIR) ) {
 		if ($ids[$refidx]->[1] =~ /^(\S+)_(\d+)-(\d+)$/) {
 		    ($hid,$hstart,$hend) = ($1,$2,$3);
 		}
+	warn("id is $hid\n");
 		$seen{$hid}++;		    
 		my ($window_start) = int($hstart / $window);
 		my $offset = ($hstart % $window);
@@ -218,7 +219,8 @@ open(my $fh => ">$out") || die "$out; $!";
 printf $fh "track type=wiggle_0 name=\"%s\" description=\"%s\"\n",
     $name, $desc;
 
-for my $chrom ( sort { $lengths{$b} <=> $lengths{$a} } 
+for my $chrom ( sort { 
+	$lengths{$b} <=> $lengths{$a} } 
 		keys %genome ) {
     next if( $debug && ! $seen{$chrom});
     printf $fh "fixedStep chrom=%s start=%d step=%d\n",
