@@ -16,10 +16,6 @@ use SVG;
 
 my $GD  = 0;
 
-GetOptions(
-	   'gd!' => \$GD);
-
-
 mkdir("png") unless -d "png";
 mkdir("svg") unless -d "svg";
 
@@ -31,6 +27,7 @@ my $dbfile;
 GetOptions(
 	   'd|dbfile:s' => \$dbfile,
 	   'dir:s'      => \$DIR,
+	   'gd!'        => \$GD,
 	   );
 
 if( ! $dbfile ) {
@@ -61,6 +58,8 @@ use constant RECOMBINATION_RATES => 'recombination_rates.tab';
 use constant SSR => 'ssr.tab';
 use constant TRNA => 'coprinus_trna.tab';
 use constant TE_REPEAT => 'coprinus_TE_repeats.tab';
+
+use constant CEN_TEL => 'coprinus_CEN_TEL.tab';
 # TRACK COLORS - COLLECT HERE FOR EASY ACCESS
 use constant BLOCKS_COLOR  => 'steelblue';
 use constant BLOCKS_COLOR_REV  => 'goldenrod';
@@ -86,6 +85,9 @@ use constant REPEATS_COLOR   => 'varB1';
 use constant FISH_BLOCKS_COLOR => 'lightgreen';
 use constant FISH_SIGNIFBLOCKS_COLOR => 'darkgreen';
 
+use constant CENTROMERE_COLOR => 'black';
+use constant TELOMERE_COLOR   => 'red';
+
 # Font sizes...
 use constant LABEL_SIZE    => '18';
 
@@ -108,6 +110,7 @@ my %labels = (
 	       tRNA            => 'tRNA genes / 50 kb',
 	       fish_blocks     => 'FISH synteny blocks',
 	       fish_blocks_all  => 'FISH synteny blocks',
+	       centromere      => 'Telomere and Centromere location',
 	       );
 my %ylabels = (
 	       genes           => 'genes',
@@ -129,6 +132,7 @@ my %ylabels = (
 	       tRNA            => 'tRNA',
 	       fish_blocks     => 'fish_blocks',
 	       fish_blocks_all => 'fish_blocks_all',
+	       centromere => 'centromere',
 	       );
 
 my %units = (
@@ -153,13 +157,14 @@ my %units = (
 	     tRNA            => 'tRNA genes',
 	     fish_blocks     => 'FISH blocks',
 	     fish_blocks_all     => 'FISH blocks',
+	     centromere      => 'Telomere and Centromere location',
 	     );
 
 # IMAGE CONSTANTS
 use constant TOP           => 70;
 use constant TRACK_HEIGHT  => 90;
-use constant TRACK_SPACE   => 40;
-use constant TOTAL_TRACKS  => 10;
+use constant TRACK_SPACE   => 45;
+use constant TOTAL_TRACKS  => 9.5;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
 use constant TRACK_LEFT    => 40;
@@ -242,6 +247,11 @@ $trna->parse(File::Spec->catfile($DIR,TRNA),
 	     qw(chrom start));
 # Just make the settings has global so I don't have to worry about
 # passing it around 'cuz that just sucks
+
+my $centromere = Windows->new('centromere'); # CENTROMERE & TELOMERE locations
+$centromere->parse_blocks(File::Spec->catfile($DIR,CEN_TEL),
+			  qw(chrom start stop type));
+
 my $settings;
 
 for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
@@ -262,6 +272,8 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 		img    => $img };
 
 #    plot('repeats',$repeats,'total',REPEATS_COLOR);
+    plot_centromere_telomere($centromere,CENTROMERE_COLOR, TELOMERE_COLOR);
+
     plot('te_repeat', $te,'total',TE_REPEAT_COLOR);
     plot('tRNA',$trna,'total',TRNA_COLOR);
     plot_recombination_rates($recombination_rates,
@@ -302,7 +314,7 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
     } else {
 	$img->text(
 		   style=> {
-		       'font' => 'Helvetica',
+		       'font' => 'Arial',
 		       'font-size'  => 40,
 		       'font-style' => 'bold'
 		       },
@@ -312,7 +324,7 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 
 	$img->text(
 		   style=> {
-		       'font' => 'Helvetica',
+		       'font' => 'Arial',
 		       'font-size' => 14,
 		   },
 		   id=>"Megabase pairs",
@@ -437,7 +449,7 @@ sub draw_yticks {
 
       $img->text(
 		 style=> {
-			  'font' => 'Helvetica',
+			  'font' => 'Arial',
 			  'font-size' => LABEL_SIZE,
 		      },
 		 id=>"$ylabel-$formatted_label-".$i,
@@ -467,7 +479,7 @@ sub draw_yticks {
 
 	      $img->text(
 			 style=> {
-			     'font' => 'Helvetica',
+			     'font' => 'Arial',
 			     'font-size' => LABEL_SIZE,
 			 },
 			 id=>"$ylabel-$formatted_label",
@@ -696,7 +708,7 @@ sub plot_gmap {
 	       fill   => $settings->{black});
     $img->text(
 	       style=> {
-			'font' => 'Helvetica',
+			'font' => 'Arial',
 			'font-size' => LABEL_SIZE,
 		       },
 	       id=>"gmap 25 CM",
@@ -711,7 +723,7 @@ sub plot_gmap {
 
     $img->text(
 	       style=> {
-			'font' => 'Helvetica',
+			'font' => 'Arial',
 			'font-size' => LABEL_SIZE,
 		       },
 	       id=>"gmap 0 CM",
@@ -727,7 +739,7 @@ sub plot_gmap {
 
     $img->text(
 	       style=> {
-			'font' => 'Helvetica',
+			'font' => 'Arial',
 			'font-size' => LABEL_SIZE,
 		       },
 	       id=>"gmap -25 CM",
@@ -737,7 +749,7 @@ sub plot_gmap {
     # Draw the unit label on the right side of the chart
     $img->text(
 	       style=> {
-			'font' => 'Helvetica',
+			'font' => 'Arial',
 			'font-size' => LABEL_SIZE,
 		       },
 	       id=>"CM label",
@@ -1025,12 +1037,59 @@ sub plot_fish_blocks {
     return;
 }
 
+sub plot_centromere_telomere {
+    my ($obj,$icencolor,$itelcolor) = @_;
+    my $cencolor = $settings->{$icencolor};
+    my $telcolor = $settings->{$itelcolor};
+
+    my $black = $settings->{black};
+
+    my $chrom  = $CONFIG->{chrom};
+    my $xscale = $CONFIG->{xscale};
+    my $img    = $CONFIG->{img};
+    my $count  = $CONFIG->{count};
+
+    my $track_baseline = TOP + ((TRACK_HEIGHT + TRACK_SPACE) * $count) + TRACK_SPACE / 2;
+    if( ! exists $obj->{$chrom} ) {
+	warn( " no chrom $chrom available\n");
+    }
+    my @blocks = @{$obj->{$chrom} || []};
+
+    my $total;
+    for my $block (@blocks) {
+	$total++;
+	my ($start,$stop,$type) = @$block;
+	my $color_stroke = $type =~ /^CEN/i ? $cencolor : $telcolor;
+	($start,$stop) = ($stop,$start) if ($start > $stop);
+	my $left   = ($start * $xscale) + TRACK_LEFT;
+	my $right  = ($stop * $xscale) + TRACK_LEFT;
+	my $top    = $track_baseline;
+	my $bottom = $track_baseline + TRACK_HEIGHT / 2;
+	if ($GD) {
+	    $img->filledRectangle($left,$top+1,$right-1,$bottom-1,
+				  $color_stroke);
+	} else {
+	    $img->rectangle(x=>$left,y=>$top,
+			    width  => $right-1-$left,
+			    height => $bottom-$top,
+			    id     => $type."-$total-" . $start .'-' . $stop,
+			    stroke => $color_stroke,
+			    fill   => $color_stroke);	    
+	}	 
+	# print STDERR join("\t",$left-1,$top,$right+1,$bottom),"\n";
+    }
+    draw_bounding($track_baseline,$obj,undef,1);
+    $CONFIG->{count} += 0.75;
+    return;
+}
+
 sub plot_recombination_rates {
     my ($obj,$hicolor,$cicolor,$neutralcolor,$markers) = @_;
     
     my %colormap = ( 'HOT' => $settings->{$hicolor},
 		     'COLD' => $settings->{$cicolor},
-		     'NEUTRAL' => $settings->{$neutralcolor} );
+		     'NEUTRAL' => $settings->{$neutralcolor},
+		     'UNSCORED' => $settings->{'white'});
     my $black = $settings->{black};
 
     my $chrom  = $CONFIG->{chrom};
@@ -1103,7 +1162,7 @@ sub plot_recombination_rates {
 
 # Draw a bounding box for this track.
 sub draw_bounding {
-  my ($top,$obj,$two_pane) = @_;
+  my ($top,$obj,$two_pane,$halfpane) = @_;
   my $track_label = $obj->{label};
   my $units       = $obj->{units};
   my $chrom  = $CONFIG->{chrom};
@@ -1114,8 +1173,11 @@ sub draw_bounding {
   my $width  = $CHROMS{$chrom}[1];
   my $left   = TRACK_LEFT;
   my $right  = TRACK_LEFT + ($xscale * $width);
+  
   my $bottom = $top + TRACK_HEIGHT;
-  if( $two_pane ) {
+  if( $halfpane ) {
+      $bottom -= TRACK_HEIGHT / 2;
+  } elsif( $two_pane ) {
       $bottom += TRACK_HEIGHT;
   }
 
@@ -1135,10 +1197,10 @@ sub draw_bounding {
   my $tick_top     = $top + TRACK_HEIGHT - 4;
   my $tick_bottom  = $top + TRACK_HEIGHT;
 
-  if( $two_pane ) { 
+  if( $two_pane || $halfpane ) { 
       $tick_bottom  = $bottom;
       $tick_top     = $bottom - 4;
-  }
+  } 
   my $chrom_length = $CHROMS{$chrom}[1];
   my $i;
   for (my $i=0;$i<=$chrom_length;$i+= TICK_SCALE ){
@@ -1159,7 +1221,7 @@ sub draw_bounding {
 
       $img->text(
 		 style=> {
-			  'font' => 'Helvetica',
+			  'font' => 'Arial',
 			  'font-size' => LABEL_SIZE,
 			  'color'=> $settings->{black},
 			 },
@@ -1188,7 +1250,7 @@ sub draw_bounding {
   } else {
     $img->text(
 	       style=> {
-			'font' => 'Helvetica',
+			'font' => 'Arial',
 			'font-size' => 22,
 		       },
 	       id=>"$track_label-main label",
@@ -1494,7 +1556,7 @@ sub parse_blocks {
 	chomp;
 	# Skip comments
 	next if (/^\#/);
-	my @fields = split("\t",$_);
+	my @fields = split(/\t/,$_);
 	my $chrom = $fields[$cols->{$chrom_col}];
 	my $start = $fields[$cols->{$start_col}];
 	my $end   = $fields[$cols->{$end_col}];
