@@ -13,7 +13,9 @@ use constant PARALOGS => 'coprinus_paralogs.tab';
 use constant REPEATS  => 'coprinus_rptmask.tab';
 use constant INTERGENIC => 'coprinus_intergenic_summary.tab';
 use constant HAPLOTYPES => 'recombination_rates.tab';
-my $telomere_distance = '0.15';
+use constant DS => 'coprinus_avg_ds.tab';
+
+
 my $DIR = 'plot';
 my $odir = 'chrom_summary';
 GetOptions(
@@ -54,6 +56,14 @@ $paralogs->parse(File::Spec->catfile($DIR,PARALOGS),
 		 qw(chrom chrom_start));
 #$paralogs->normalize($genes);
 
+my $dS = Windows->new('dS'); #paralogs
+$dS->parse(File::Spec->catfile($DIR,DS),
+		 qw(scaffold start_position dS));
+
+my $dupnum = Windows->new('dupNum'); #paralogs
+$dupnum->parse(File::Spec->catfile($DIR,DS),
+		 qw(scaffold start_position count));
+
 #my $ssgenes = Windows->new('ssgenes'); #species-specificgenes
 #$ssgenes->parse(File::Spec->catfile($DIR,SSGENES),
 #		qw(chrom chrom_start));
@@ -64,6 +74,7 @@ my %dat = ( 'genes'   => $genes,
 	    'paralogs' => $paralogs,
 	    'orthologs'=> $orthos,
 	    'orphans'  => $orphans,
+	    'dupnum'   => $dupnum,
 	    #'species_specific' => $ssgenes,
 	    );
 
@@ -75,6 +86,7 @@ while(<$blocks>) {
     my @line = split;
     push @{$blocks{$line[0]}->{$line[5]}}, [$line[1],$line[2]];
 }
+
 for my $dat ( keys %dat ) {
     open(my $hotfh => ">$odir/$dat\_hot.dat") || die $!;
     print $hotfh join("\t",qw(CHROM BIN TOTAL)),"\n";
@@ -82,8 +94,11 @@ for my $dat ( keys %dat ) {
     open(my $coldfh => ">$odir/$dat\_cold.dat") || die $!;
     print $coldfh join("\t",qw(CHROM BIN TOTAL)),"\n";
 
-    open(my $neutralfh => ">$odir/$dat\_neutral.dat") || die $!;    
-    print $neutralfh join("\t",qw(CHROM BIN TOTAL)),"\n";
+    open(my $avgfh => ">$odir/$dat\_avg.dat") || die $!;    
+    print $avgfh join("\t",qw(CHROM BIN TOTAL)),"\n";
+
+    open(my $notCfh => ">$odir/$dat\_notcold.dat") || die $!;    
+    print $notCfh join("\t",qw(CHROM BIN TOTAL)),"\n";
 
     for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
 		   keys %CHROMS) {
@@ -93,33 +108,110 @@ for my $dat ( keys %dat ) {
 	for my $blocks ( @{$blocks{$chrom}->{'HOT'}} ) {
 	    my $bins = &process_lumped($dat{$dat},$chrom,
 				       @$blocks);	    
-	    print $hotfh   join("\n",@$bins),"\n";
+	    print $hotfh   join("\n",@$bins),"\n" if scalar @$bins; 
+	    print $notCfh  join("\n",@$bins),"\n" if scalar @$bins;
+
 	}
 	for my $blocks ( @{$blocks{$chrom}->{'COLD'}} ) {
 	    my $bins = &process_lumped($dat{$dat},$chrom,
 				       @$blocks);	    
-	    print $coldfh join("\n",@$bins),"\n";
+	    print $coldfh join("\n",@$bins),"\n" if scalar @$bins;
 	}
 	for my $blocks ( @{$blocks{$chrom}->{'NEUTRAL'}} ) {
 	    my $bins = &process_lumped($dat{$dat},$chrom,
 				       @$blocks);	    
-	    print $neutralfh join("\n",@$bins),"\n";
+	    print $notCfh  join("\n",@$bins),"\n" if scalar @$bins;
+	    print $avgfh join("\n",@$bins),"\n" if scalar @$bins;
 	}
 	
     }
     open(R, ">$odir/coldhot_$dat.R") || die $!;
     printf R "%scold <- read.table(\"%s_cold.dat\",header=T)\n",$dat,$dat;
     printf R "%shot <- read.table(\"%s_hot.dat\",header=T)\n",$dat,$dat;
-    printf R "%sneutral <- read.table(\"%s_neutral.dat\",header=T)\n",$dat,$dat;
-    printf R "pdf(\"cold_hot_neutral_%s.pdf\")\n",$dat;
-    printf R "boxplot(%scold\$TOTAL,%shot\$TOTAL,%sneutral\$TOTAL,main=\"%s Cold-Hot-Neutral Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\",\"Neutral\"))\n",$dat,$dat,$dat,$dat;
+    printf R "%savg <- read.table(\"%s_avg.dat\",header=T)\n",$dat,$dat;
+    printf R "%snotcold <- read.table(\"%s_notcold.dat\",header=T)\n",$dat,$dat;
+
+    printf R "pdf(\"cold_hot_avg_%s.pdf\")\n",$dat;
+    printf R "boxplot(%scold\$TOTAL,%shot\$TOTAL,%savg\$TOTAL,%snotcold\$TOTAL,main=\"%s Cold-Hot-Avg Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\",\"Avg\", \"NotCold\"))\n",$dat,$dat,$dat,$dat,$dat;
     printf R "summary(%shot\$TOTAL)\n",$dat;
-    printf R "summary(%sneutral\$TOTAL)\n",$dat;
+    printf R "summary(%savg\$TOTAL)\n",$dat;
     printf R "summary(%scold\$TOTAL)\n",$dat;
+    printf R "summary(%snotcold\$TOTAL)\n",$dat;
+
+    printf R "var.test(%scold\$TOTAL,%shot\$TOTAL)\n",$dat,$dat;
+    printf R "var.test(%shot\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "var.test(%scold\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "var.test(%scold\$TOTAL,%snotcold\$TOTAL)\n",$dat,$dat;
+
+
     printf R "ks.test(%scold\$TOTAL,%shot\$TOTAL)\n",$dat,$dat;
-    printf R "ks.test(%shot\$TOTAL,%sneutral\$TOTAL)\n",$dat,$dat;
-    printf R "ks.test(%scold\$TOTAL,%sneutral\$TOTAL)\n",$dat,$dat;
+    printf R "ks.test(%shot\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "ks.test(%scold\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "ks.test(%scold\$TOTAL,%snotcold\$TOTAL)\n",$dat,$dat;
+
+    printf R "wilcox.test(%scold\$TOTAL,%shot\$TOTAL)\n",$dat,$dat;
+    printf R "wilcox.test(%shot\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "wilcox.test(%scold\$TOTAL,%savg\$TOTAL)\n",$dat,$dat;
+    printf R "wilcox.test(%scold\$TOTAL,%snotcold\$TOTAL)\n",$dat,$dat;
+}
+
+{
+# need to do the dS summary
+    my $dat = 'dS';
+    $dat{$dat} = $dS;
+    open(my $hotfh => ">$odir/$dat\_hot.dat") || die $!;
+    print $hotfh join("\t",qw(CHROM BIN MEAN)),"\n";
     
+    open(my $coldfh => ">$odir/$dat\_cold.dat") || die $!;
+    print $coldfh join("\t",qw(CHROM BIN MEAN)),"\n";
+    
+    open(my $avgfh => ">$odir/$dat\_avg.dat") || die $!;    
+    print $avgfh join("\t",qw(CHROM BIN MEAN)),"\n";
+
+    open(my $notCfh => ">$odir/$dat\_notcold.dat") || die $!;    
+    print $notCfh join("\t",qw(CHROM BIN MEAN)),"\n";
+    
+    for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
+		   keys %CHROMS) {
+	next if $chrom =~ /^U/i;
+#	warn( "Processing $chrom ...\n");
+#	print "$chrom ", $CHROMS{$chrom}->[1], "\n";
+	for my $blocks ( @{$blocks{$chrom}->{'HOT'}} ) {
+	    my $bins = &process_lumped_value($dat{$dat},$chrom,
+				       @$blocks);	    
+	    print $hotfh   join("\n",@$bins),"\n" if scalar @$bins;
+	    print $notCfh  join("\n",@$bins),"\n" if scalar @$bins;
+	    
+	}
+	for my $blocks ( @{$blocks{$chrom}->{'COLD'}} ) {
+	    my $bins = &process_lumped_value($dat{$dat},$chrom,
+				       @$blocks);	    
+	    print $coldfh join("\n",@$bins),"\n" if scalar @$bins;
+	}
+	for my $blocks ( @{$blocks{$chrom}->{'NEUTRAL'}} ) {
+	    my $bins = &process_lumped_value($dat{$dat},$chrom,
+					     @$blocks);	    
+	    print $avgfh join("\n",@$bins),"\n" if scalar @$bins;
+	    print $notCfh  join("\n",@$bins),"\n" if scalar @$bins;
+	}
+	
+    }
+    open(R, ">$odir/coldhot_$dat.R") || die $!;
+    printf R "%scold <- read.table(\"%s_cold.dat\",header=T)\n",$dat,$dat;
+    printf R "%shot <- read.table(\"%s_hot.dat\",header=T)\n",$dat,$dat;
+    printf R "%savg <- read.table(\"%s_avg.dat\",header=T)\n",$dat,$dat;
+    printf R "%snotcold <- read.table(\"%s_notcold.dat\",header=T)\n",$dat,$dat;
+    
+    printf R "pdf(\"cold_hot_avg_%s.pdf\")\n",$dat;
+    printf R "boxplot(%scold\$MEAN,%shot\$MEAN,%savg\$MEAN,%snotcold\$MEAN,main=\"%s Cold-Hot-Avg Density BoxPlot\", outline=FALSE, names=c(\"Cold\",\"Hot\",\"Avg\",\"NotCold\"))\n",$dat,$dat,$dat,$dat,$dat;
+    printf R "summary(%shot\$MEAN)\n",$dat;
+    printf R "summary(%savg\$MEAN)\n",$dat;
+    printf R "summary(%scold\$MEAN)\n",$dat;
+    printf R "summary(%snotcold\$MEAN)\n",$dat;
+    printf R "ks.test(%scold\$MEAN,%shot\$MEAN)\n",$dat,$dat;
+    printf R "ks.test(%shot\$MEAN,%savg\$MEAN)\n",$dat,$dat;
+    printf R "ks.test(%scold\$MEAN,%savg\$MEAN)\n",$dat,$dat;
+    printf R "ks.test(%scold\$MEAN,%snotcold\$MEAN)\n",$dat,$dat;
 }
 
 sub process_lumped {
@@ -136,6 +228,21 @@ sub process_lumped {
     return \@d;
 }
 
+sub process_lumped_value {
+    my ($obj,$chrom,$left,$right) = @_;
+    my $flag = 'average';
+
+    my $bins = $obj->fetch_bins($chrom);
+    my @d;
+    for my $bin (@$bins) {
+	if( $bin >= $left && $bin <= $right ) {
+	    my $avg = $obj->$flag($chrom,$bin);
+	    next if $avg > 4;
+	    push @d, join("\t", $chrom,$bin,$avg);
+	} 
+    }
+    return \@d;
+}
 
 package Windows;
 
