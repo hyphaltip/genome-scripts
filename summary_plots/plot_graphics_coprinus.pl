@@ -89,7 +89,7 @@ use constant CENTROMERE_COLOR => 'black';
 use constant TELOMERE_COLOR   => 'red';
 
 # Font sizes...
-use constant LABEL_SIZE    => '18';
+use constant LABEL_SIZE    => '12';
 
 # These are not being used right now
 my %labels = ( 
@@ -161,14 +161,14 @@ my %units = (
 	     );
 
 # IMAGE CONSTANTS
-use constant TOP           => 70;
-use constant TRACK_HEIGHT  => 90;
-use constant TRACK_SPACE   => 45;
+use constant TOP           => 40;
+use constant TRACK_HEIGHT  => 40;
+use constant TRACK_SPACE   => 40;
 use constant TOTAL_TRACKS  => 9.5;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
-use constant TRACK_LEFT    => 40;
-use constant WIDTH         => 1600;
+use constant TRACK_LEFT    => 35;
+use constant WIDTH         => 800;
 
 # Values for left aligned labels
 #use constant WIDTH         => 1300;
@@ -307,8 +307,8 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 	#$img->string(gdGiantFont,TRACK_LEFT,
 	#	       5,$header,$settings->{black});
 
-	$img->string(gdMediumBoldFont,$scaled/2-(length($footer)/2),
-		     $height - (gdMediumBoldFont->height) - 2,$footer,$settings->{black});
+#	$img->string(gdMediumBoldFont,$scaled/2-(length($footer)/2),
+#		     $height - (gdMediumBoldFont->height) - 2,$footer,$settings->{black});
 	open OUT,">png/$chrom.png";
 	print OUT $img->png;
     } else {
@@ -319,17 +319,17 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 		       'font-style' => 'bold'
 		       },
 		   id=>"$header",
-		   x=>5,
+		   x=>$scaled - (length($header) * 10) - 2,
 		   y=>40)->cdata($header);
 
-	$img->text(
-		   style=> {
-		       'font' => 'Arial',
-		       'font-size' => 14,
-		   },
-		   id=>"Megabase pairs",
-		   x=>$scaled/2-(length($footer)/2),
-		   y=>$height)->cdata($footer);
+#	$img->text(
+#		   style=> {
+#		       'font' => 'Arial',
+#		       'font-size' => 14,
+#		   },
+#		   id=>"Megabase pairs",
+#		   x=>$scaled/2-(length($footer)/2),
+#		   y=>$height)->cdata($footer);
 	open OUT,">svg/$chrom.svg";
 	my $out = $img->xmlify;
 	print OUT $out;
