@@ -150,7 +150,7 @@ sub calc_IA {
     warn("count is $count loci used\n");
     printf "V_O = %.2f\n", $stats->variance();
     printf "V_E = %.2f\n", $Var_E;
-    printf "I_A = %.2f\n", $stats->variance()/$Var_E -1;
+    printf "I_A = %.2f\n", ($stats->variance()/$Var_E) -1;
 
 }
 sub too_close {
