@@ -3,6 +3,11 @@ use strict;
 use Bio::DB::SeqFeature::Store;
 use Getopt::Long;
 use Env qw(HOME);
+# here is 
+# annot_xfer_mercatorblocks.pl -f gene:Broad -t gene:JGI \
+#    -dt Batrachochytrium_dendrobatidis_JAM81_5 \
+#    -df Batrachochytrium_dendrobatidis_JEL423_1 -m alignments \
+#    -gt JAM81 -gf JEL423 > JAM81-JEL423.mercator_orthologs.tab
 
 my ($user,$pass,$dbname_from,$dbname_to,$host);
 $host ='localhost';
