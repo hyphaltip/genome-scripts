@@ -3,7 +3,7 @@ use strict;
 use Bio::DB::SeqFeature::Store;
 use Getopt::Long;
 use Env qw(HOME);
-# here is 
+# here is cmdline example 
 # annot_xfer_mercatorblocks.pl -f gene:Broad -t gene:JGI \
 #    -dt Batrachochytrium_dendrobatidis_JAM81_5 \
 #    -df Batrachochytrium_dendrobatidis_JEL423_1 -m alignments \
@@ -120,7 +120,7 @@ while( my $gene = $iter->next_seq ) {
 		    print $output join("\t",
 				       $name, $t_name,$gene->seq_id,
 				       $gene->start,$gene->end,$gene->strand,
-				       '','','','','','NO_GENES_IN_INTERNAL'),"\n";
+				       '','','','','','NO_GENES_IN_INTERVAL'),"\n";
 		}
 	    }
 	}
