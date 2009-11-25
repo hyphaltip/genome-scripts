@@ -7,9 +7,12 @@ use constant CDSEXON => 'cds';
 use constant EXON => 'exon';
 use constant MRNA => 'mRNA';
 use constant GENE => 'gene';
+my $verbose = 0;
 
 my $write_sequence;
-GetOptions("w|s|write|seq!" => \$write_sequence);
+GetOptions("w|s|write|seq!" => \$write_sequence,
+	   'v|verbose!'     => \$verbose,
+	   );
 
 my $gffdir = "raw/jgi";
 my $ntdir = "raw/nt";
@@ -23,7 +26,7 @@ opendir(DIR, $gffdir) || die $!;
 FILE: for my $file ( readdir(DIR) ) {
     next unless $file =~ /(\S+)_transcripts\.g[tf]f$/;
     my $stem = $1;
-    warn("file is $file\n");
+    warn("file is $file\n") if $verbose;
 
     my ($genus,$species,$strain,$version) = split(/_/,$stem);
 	
@@ -58,7 +61,7 @@ FILE: for my $file ( readdir(DIR) ) {
 	warn("cannot find a fasta file for $stem, skipping\n");
 	next;
     }
-	    
+    warn("fafile is $fafile\n") if $verbose;
     my $seqio = Bio::SeqIO->new(-format => 'fasta',
 				-file   => $fafile);
     my @seqs;
@@ -115,12 +118,12 @@ FILE: for my $file ( readdir(DIR) ) {
 	}
 	
 	if( $lastcol =~ /featureId\s+(\d+)/ ) {
-	    $transcriptid = "$prefix\_t$1";
+	    $transcriptid = "$prefix\_t_$1";
 	}
 	if( $lastcol =~ /transcriptId\s+(\d+)/ ) {
-	    $transcriptid = "$prefix\_t$1";
+	    $transcriptid = "$prefix\_t_$1";
 	} elsif( $lastcol =~ /transcript_id\s+\"([^\"]+)\"/ ) { #"
-	    $transcriptid = "$prefix\_t$1";
+	    $transcriptid = "$prefix\_t_$1";
         }
 	
 	if( defined $transcriptid && ! defined $lookup{$geneid}) {
@@ -181,7 +184,7 @@ FILE: for my $file ( readdir(DIR) ) {
 	    unshift @lines, join("\t", $seqid_all, $src_string, MRNA,
 				 $tmin, $tmax, '.', $tstrand, '.',
 				 join(';',
-				      sprintf("ID=%s",$transcript),
+				      sprintf("ID=%s;Name=%s",$transcript,$transcript),
 				      sprintf('Parent=%s',$gene)));
 	}
 	print $out join("\t", $seqid_all, $src_string, GENE,
