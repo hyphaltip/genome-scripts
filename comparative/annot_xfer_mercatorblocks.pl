@@ -90,6 +90,8 @@ while( my $gene = $iter->next_seq ) {
     my $name = $gene->name;
     my ($mRNA) = $gene->get_SeqFeatures('mRNA'); # 1st mRNA for now
     my $t_name = $mRNA->name;
+    # This program requires the sliceAlignment program from
+    # MERCATOR which is part of Colin Dewey's tools
     my $arg = sprintf("sliceAlignment %s %s %s %d %d %s",
 		      $mercator_dir, $genome_from,
 		      $gene->seq_id, $gene->start, $gene->end,
@@ -97,15 +99,20 @@ while( my $gene = $iter->next_seq ) {
     open(my $map => "$arg 2>/dev/null | grep '>' | " ) || die "Cannot open slice with $arg\n";
     my $seen = 0;
     while(<$map>) {
+	# parsing output from sliceAlignment, all we really want is the 
+        # matching interval in the other genome (genome_to is the prefix)
 	if( /^>(\S+)\s+([^:]+):(\d+)\-(\d+)([+-])/ ) {
 	    my ($genome,$chrom,$start,$end,$strand) = ($1,$2,$3,$4,$5);	
 	    if( $genome eq $genome_to ) {
 		$seen = 1;
+		# get that segment in the 'TO' genome
 		my $segment = $dbh_to->segment($chrom,$start,$end);
+		# extract the gene(s) in this interval
 		my @genes = $segment->features(-type => $to_feature);
 		if( @genes ) {
 		    for my $g ( @genes ) {
 			my ($to_mRNA) = $g->get_SeqFeatures('mRNA');
+			# print out the genes that fall in syntenic interval
 			print $output join("\t",
 					   $name, $t_name,$gene->seq_id,
 					   $gene->start,$gene->end,
