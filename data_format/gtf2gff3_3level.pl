@@ -122,6 +122,10 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
 	my @exons = grep { $_->[2] eq 'exon' } @$exons;
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exons;	
+	if( ! @cds ) {
+	    warn("no CDS found in $mrna_id ($gid,$transcript) ", join(",", map { $_->[2] } @$exons),"\n") if $debug;
+	    next;
+	}
 	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exons;
 	my ($stop_codon)   = grep { $_->[2] eq 'stop_codon'  } @$exons;
 	
@@ -170,7 +174,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	# order 5' -> 3' by multiplying start by strand
 
 	@cds = sort { $a->[3] * $strand_val <=>
-			$b->[3] * $strand_val } @cds;
+		      $b->[3] * $strand_val } @cds;
 
 	if ( $debug) {
 	  warn("CDS order is :\n");
