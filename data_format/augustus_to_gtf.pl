@@ -63,7 +63,7 @@ while(<>) {
 	next;
     } elsif( $line[2] eq 'start_codon' || 
 	     $line[2] eq 'stop_codon' ) {
-	$lastcol =~ s/Parent=((\S+)\.t\d+)/transcript_id "$2"; gene_id "$2";/;
+	$lastcol =~ s/Parent=((\S+)\.t\d+)/transcript_id "$1"; gene_id "$2";/;
 	$codons{$line[2]} = [@line,$lastcol];
     } else { 
 	next;
