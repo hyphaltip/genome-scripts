@@ -15,6 +15,10 @@ use Env qw(HOME);
 Map Pfam domains (or any protein feature) from protein coordinates to genomic coordinates.  Expects output from hmmer2table.pl 
 which is in bioperl/scripts/searchio/hmmer_to_table.PLS
 
+--hmmer or --version can specify hmmer2 or hmmer3 
+  '2' supposes you ran hmmer2table.pl to get your table (HMMER2 processing pipeline)
+  '3' supposes you ran HMMER3 and are providing the file from --domtblout
+
 =head1 AUTHOR
 
 Jason Stajich, jason-at-bioperl.org
@@ -35,9 +39,13 @@ my $debug = 0;
 my $src = 'HMMER_Pfam';
 my %domains;
 my ($tabfile);
+my $hmmer_version = 2;
+my $cutoff = 0.01;
 GetOptions(
 	   'v|verbose!'     => \$debug,
+	   'hmmer|version:i' => \$hmmer_version,
 	   'u|user:s'       => \$user,
+	   'c|cutoff:s'     => \$cutoff,
 	   'p|pass:s'       => \$pass,
 	   'host:s'         => \$host,
 	   'db|dbname:s'    => \$dbname,
@@ -64,19 +72,40 @@ if( $tabfile =~ /\.gz$/ ) {
 }
 my %seen;
 while(<$fh>) {
-    my ($gene_name, $qstart,$qend, $domain, $hstart,$hend, 
-	$score,$evalue) = split;
-    $seen{"$gene_name.$domain"}++;
-    my ($gene) = $dbh->get_features_by_name($gene_name);
-    if( ! defined $gene ) {
-	warn("cannot find $gene_name\n");
-	next;
+    my ($gene_name,$qstart,$qend,$domain,$hstart,$hend,$score,$evalue);
+    if( $hmmer_version == 2 ) {
+	($gene_name,$qstart,$qend,$domain,$hstart,$hend,$score,$evalue) = split;
+    } else {
+	my ($domacc,$tlen,$qacc,$qlen, $fullevalue,$fullscore,$fullbias,
+	    $n,$ntotal,$cvalue,$ivalue,$dombias,$envfrom,$envto,$acc,$desc);
+
+	chomp;
+	next if /^\#/ || /^\s+/;
+	($domain,$domacc,$tlen,$gene_name,$qacc,$qlen,
+	 $fullevalue,$fullscore,$fullbias,$n,$ntotal,$cvalue,$ivalue,
+	 $score,$dombias,
+	 $hstart,$hend, $qstart,$qend,$envfrom,$envto,$acc,$desc) = split(/\s+/,$_,23);
+	 $evalue = $ivalue;	 
     }
+    next if $evalue > $cutoff;
+    $seen{"$gene_name.$domain"}++;
+     
+    my ($gene) = $dbh->get_features_by_name($gene_name);
+
+    unless ( defined $gene ) {
+	($gene) = $dbh->features(-type => ['gene'],
+				 -attributes => {locus_tag => $gene_name});
+	unless( defined $gene ) {
+	    warn("cannot find $gene_name\n");
+	    next;
+	}
+    }
+    
     my @exons;
-#    warn("gene name is $gene_name\n");
+    warn("gene name is $gene_name\n") if $debug;
     for my $mRNA ( $gene->get_SeqFeatures ) {
 	for my $cds ( $mRNA->CDS ) {
-#	    warn($cds->to_FTstring, "\n");
+	    warn($cds->to_FTstring, "\n") if $debug;
 	    push @exons, $cds;
 	}    
 	my $genemap = Bio::Coordinate::GeneMapper->new(-in    => 'peptide',
