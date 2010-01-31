@@ -9,7 +9,10 @@ use Bio::SeqIO;
 use Env qw(USER HOME);
 use Getopt::Long;
 use Bio::Location::Simple;
+use Bio::SeqFeature::Generic;
+use File::Temp qw(tempdir);
 use constant SCALE => 1_000;
+
 
 my ($user,$pass,$dbname,$host);
 $host ='localhost';
@@ -43,6 +46,10 @@ my $dbh = Bio::DB::SeqFeature::Store->new(-adaptor => 'DBI::mysql',
 
 my $iter = $dbh->get_seq_stream(-type => $type);
 
+my $tempdir = tempdir(CLEANUP => 1);
+my $seen_intervals = Bio::DB::SeqFeature::Store->new(-adaptor => 'berkeleydb',
+						     -dir     => $tempdir,
+						     -create  => 1);
 my %fh;
 for my $size (@increments) {
     $fh{$size} =  Bio::SeqIO->new(-format => 'fasta',
@@ -54,8 +61,22 @@ GENE: while( my $gene = $iter->next_seq ) {
     if( defined $gname ) {
 	$gname =~ s/^\"//;
         $gname =~ s/\"$//;
-    }    
-    my $length = $dbh->segment($gene->seq_id)->length;
+    }
+    my $chrom_segment = $dbh->segment($gene->seq_id);
+    my $seen_segment = $seen_intervals->segment($gene->seq_id);
+    unless( defined $seen_segment ) {	
+	$seen_intervals->store
+	    (Bio::SeqFeature::Generic->new(-seq_id=>$gene->seq_id,
+					   -strand => '+',
+					   -start => 1,
+					   -primary_tag  => 'scaffold',
+					   -source_tag => 'chromosome',
+					   -end   => $chrom_segment->length,
+					   -tag   => {'Id' => $gene->seq_id,
+						      'Name'=> $gene->seq_id}));
+	$seen_segment = $seen_intervals->segment($gene->seq_id);
+    }
+    my $length = $chrom_segment->length;
     warn("$gname ", $gene->location->to_FTstring(),"\n") if $debug;
     my $start = $gene->start;
     my $end   = $gene->end;
@@ -77,16 +98,33 @@ GENE: while( my $gene = $iter->next_seq ) {
 	
 	my $segment = $dbh->segment($gene->seq_id,
 				    sort { $a <=> $b } @upstream);
+	
 	if( $segment->length < 10 ) {
 	    warn("skipping segment $segment, too short\n");
 	}
 	warn("segment is '$segment' for '", $gene->seq_id,"'\n") if $debug;
 	my @features = $segment->features(-type => $type);
 	
-	warn("overlapping @features for @upstream of $segment\n") if $debug;
+	if( @features ) {
+	    warn("overlapping @features for @upstream of $segment for $gname\n");
+	    last;
+	}
 	my $seqstr = $strand < 0 ? $segment->seq->revcom->seq :$segment->seq->seq;
 	my $loc = $segment->location;
+	$loc->seq_id($gene->seq_id);
 	$loc->strand($strand);
+	
+	my @seenf = $seen_intervals->features(-seq_id =>$loc->seq_id, 
+					      -start  => $loc->start, 
+					      -end    => $loc->end,
+					      -type   => 'PROMOTOR:SEEN');
+	if(  @seenf ) {
+	    warn("already covered interval: "
+		,$seenf[0]->source_tag, " ",$seenf[0]->primary_tag, " ",
+		$seenf[0]->location->to_FTstring(),"\n");
+	    last;
+	}		    
+						 
 	$fh->write_seq(Bio::PrimarySeq->new(-seq => $seqstr,
 					    -display_id=>sprintf("%s.5UP_%dkb",
 								 $gname,
@@ -96,6 +134,14 @@ GENE: while( my $gene = $iter->next_seq ) {
 							     $loc->to_FTstring(),
 							     $gname)
 					    ));
+	my $f = Bio::SeqFeature::Generic->new(-seq_id   => $gene->seq_id,
+					   -source_tag   => 'SEEN',
+					   -primary_tag     => 'PROMOTOR',
+					   -location => $loc);
+	
+
+	$seen_intervals->store($f);
+
 	if( $strand > 0 ){ 
 	    $start = $upstream[0];	    
 	} else { 
