@@ -32,7 +32,10 @@ while(<>) {
 	$group = $1;
 	$group =~ s/Model\.//;
     } 
-     
+    if( ! $group ) {
+	warn("no group in $_\n");
+	next;
+    } 
     if( ! $seen{$group}++ ) {
 	push @order, $group;
     }
@@ -45,15 +48,33 @@ for my $gene ( @order ) {
 			sort { $a->[0] <=> $b->[0]}
 			map { [$_->[3] * ($_->[6] eq '-' ? -1 : 1), $_] }
 			@{$gene{$gene}} );
+	my $i = 1;
+	my $count = scalar @ordered_cds;
+    for my $cds ( @ordered_cds ) {
+	my $type;
+        if( $count == 1 ) {
+        $type = 'single';
+        } elsif( $count == $i ) {
+        $type = 'terminal';
+        } elsif( $i == 1 ) {
+        $type = 'initial';
+        } else {
+        $type = 'internal';
+        }
+        $cds->[-1] = "exontype \"$type\"; ".$cds->[-1];
+	$i++;
+     }
+
     my ($fexon,$lexon) = ($ordered_cds[0], $ordered_cds[-1]);
     if( $fexon->[6] eq '+' ) {
-	print join("\t", $fexon->[0], $fexon->[1], 'start_codon',
+	unshift @ordered_cds, [$fexon->[0], $fexon->[1], 'start_codon',
 		   $fexon->[3],
 		   $fexon->[3] + 2,
 		   $fexon->[5],
 		   $fexon->[6],
 		   $fexon->[7],
-		   $fexon->[8]), "\n";
+		   $fexon->[8]];
+	$ordered_cds[0]->[-1] =~ s/exontype\s+\S+\s"//;
 	$fexon->[3] += 3;
     } else {
 	print join("\t", $fexon->[0], $fexon->[1], 'start_codon',
@@ -84,6 +105,7 @@ for my $gene ( @order ) {
 			    $lexon->[7],
 			    $lexon->[8],
 			    ];
+	$ordered_cds[-1]->[-1] =~ s/exontype\s+\S+\s+//;
 	$lexon->[3] += 3;
 	if( $debug ) {
 	    print "last exon ",$db->seq($lexon->[0],
@@ -104,6 +126,7 @@ for my $gene ( @order ) {
 		   $lexon->[6],
 		   $lexon->[7],
 		   $lexon->[8]];
+	$ordered_cds[-1]->[-1] =~ s/exontype\s+\S+\s+//;
 	$lexon->[4] -= 3;
 	if( $debug )  {
 	    print "last exon ",$db->seq($lexon->[0],
