@@ -126,10 +126,11 @@ while(<$fh>) {
 		       $evalue,
 			$exon->strand > 0 ? '+' : '-',
 		       '.',
-		       sprintf('ID=%s__%s.%d;Name=%s',
+		       sprintf('ID=%s__%s.%d;Name=%s;overlapping_gene=%s',
 			       $domain, $gene_name,
 			       $seen{"$gene_name.$domain"}, 
-			       $domain)),"\n";
+			       $domain,
+			       $gene_name)),"\n";
 	}
     }
 }
