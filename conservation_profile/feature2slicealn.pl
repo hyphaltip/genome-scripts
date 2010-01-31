@@ -37,6 +37,7 @@ for my $file ( readdir(DIR) ) {
 	    my ($start,$end) = ($loc =~ /(\d+)\.\.(\d+)/);
 	    $start--; #
 	    `sliceAlignment $alndir $genome $chrom $start $end $strand > $odir/$id.fas`;
+	    warn("sliceAlignment $alndir $genome $chrom $start $end $strand \n") if $debug;
 	}
 	last if $debug;
     }
