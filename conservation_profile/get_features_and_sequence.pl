@@ -57,7 +57,11 @@ my $intronout = Bio::SeqIO->new(-format => 'fasta',
 			      -file   => ">$odir/$dbname.intron.fasta");
 
 GENE: while( my $gene = $iter->next_seq ) {
-    my ($gname) = $gene->get_tag_values('Note');
+    my ($gname);
+    for my $tag ( qw(Note locus_tag) ) {
+	($gname) = $gene->get_tag_values($tag);
+	last if defined $gname;
+    }
     if( defined $gname ) {
 	$gname =~ s/^\"//;
         $gname =~ s/\"$//;
@@ -130,6 +134,7 @@ GENE: while( my $gene = $iter->next_seq ) {
 	}
 	if( ! defined $min || ! defined $max ) {
 		warn("no min/max for ",$mRNA->name,"\n");
+		next;
 	}
 	my $locstr = sprintf($strand < 0 ? "complement(%d..%d)" : "%d..%d",
 			     $min,$max);
@@ -214,8 +219,7 @@ GENE: while( my $gene = $iter->next_seq ) {
 								     $mRNA->name,
 								     $exonct++,
 								     ),
-					      -desc => sprintf("%s:%s gene=%s",
-							       $gene->seq_id,
+					      -desc => sprintf("%s gene=%s",
 							       $cdso->location->to_FTstring,
 							       $gname),
 					      -seq=>$cdso->seq->seq));
