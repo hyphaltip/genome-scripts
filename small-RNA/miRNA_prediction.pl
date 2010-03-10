@@ -30,7 +30,7 @@ use RNA;
 # miRNA* to satisfy the requirements of the MIRCHECK program [31].
 
 my $pref = 'sRNAPred%04d';
-my $Min_coverage = 500;
+my $Min_coverage = 50;
 my ($window_table,$bam,$fa);
 my ($upstream,$downstream) = (160,20);
 my $target_dir = 'targets';
@@ -41,12 +41,14 @@ GetOptions(
 	   'v|verbose!'    => \$debug,
 	   'w|t|table:s'   => \$window_table,
 	   'b|bam:s'       => \$bam,
-	   'fa|g|genome:s' => \$fa,
-	   'm|min:i'       => \$Min_coverage,
-	   'mfe:s'         => \$min_mfe,
+	   'fa|d|db|g|genome:s' => \$fa,
+	   'min:i'         => \$Min_coverage,
+	   'mfe:i'         => \$min_mfe,
 	   'stem:i'        => \$min_stemlen,
 	   );
-
+#if( $min_mfe > 0 ) { 
+#    $min_mfe = "-".$mfe;
+#}
 my $max_tile = $upstream + $downstream + 30;
 
 $bam ||= shift @ARGV;
@@ -76,6 +78,7 @@ my $out = Bio::SeqIO->new(-format => 'fasta',
 while(<$fh>) {
     my ($seqid,$start,$end,@window_counts) = split;    
     next unless ( &min_coverage(@window_counts) );    
+    warn("here with $seqid $start $end @window_counts\n") if $debug;
     $count++;
     
     my @tile = &tile_features($db->get_features_by_location
@@ -86,7 +89,6 @@ while(<$fh>) {
 	my ($astart,$aend,$aln_count) = @$tile_window;
 	my ($pred_segment_fwd, $pred_segment_rev);
 	my @coords;
-	
 	if( abs($astart - $aend) > $max_tile ) {
 	    push @coords, ([$astart, $aend,$aln_count], [$aend, $astart,$aln_count]);
 	} else {
@@ -128,7 +130,7 @@ while(<$fh>) {
 		    my ($energy,$str,$prob,$shape) = split(/\s+/,$_,4);
 		    my @shapes;
 		    my $stemlen;
-		    if( $shape eq '[]' || $shape eq '[]') {
+		    if( $shape eq '[]' ) {
 			if ($str =~ /^\.*([\(\.]+\()(\.+)(\)[\.\)]+\))\.*/) {
 			    my ($steml,$loop,$stemr) = ($1,$2,$3);
 			    #warn "$steml   $loop   $stemr for $str\n" if $debug;
@@ -145,22 +147,21 @@ while(<$fh>) {
 				   sprintf("Energy=%s",$energy),
 				   sprintf("StemLen=%d",$stemlen),
 				   );
+			my $systematic_name = sprintf($pref,$mirnacounter++);
+#		    next unless $stemlen > $min_stemlen;
 			print $ofh join("\t", 
 					$seqid,'miRNAPred','ncRNA',
 					(sort { $a <=> $b} ($s,$e)),$prob,
 					'.', '.',
-					join(";",@shapes)),"\n";
-#		    next unless $stemlen > $min_stemlen;
+					join(";",sprintf("ID=%s;Name=%s",$systematic_name,$systematic_name),@shapes)),"\n";
 			close($rdr);
 			close($wtr);
-			my $systematic_name = sprintf($pref,$mirnacounter++);
 			my $seqobj = Bio::Seq->new(-id   => $systematic_name,
 						   -desc => sprintf("LOC=%s:%d..%d DEPTH=%d MFE=%s SHAPE_MFE=%s SHAPE_PROB=%s", 
 								    $seqid,$s,$e,$ct,$mfe,$energy,$prob),
 						   -seq => $seq);
 			$outseq->write_seq($seqobj);	
 			waitpid $pid, 0;
-			exit;	    
 		    }
 		}
 	    }
