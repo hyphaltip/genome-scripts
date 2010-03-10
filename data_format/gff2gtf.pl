@@ -40,8 +40,8 @@ while(<>) {
 	push @order, $group;
     }
     push @{$gene{$group}}, [ @line, 
-			     sprintf('gene_id "%s"; transcript_id "%s";',
-				     $group, "$group.1")];
+			     sprintf('transcript_id "%s"; gene_id "%s";',
+				     "$group.1", $group)];
 }
 for my $gene ( @order ) {
     my @ordered_cds = ( map { $_->[1] }
@@ -50,6 +50,7 @@ for my $gene ( @order ) {
 			@{$gene{$gene}} );
 	my $i = 1;
 	my $count = scalar @ordered_cds;
+    my $running = 0;
     for my $cds ( @ordered_cds ) {
 	my $type;
         if( $count == 1 ) {
@@ -62,28 +63,32 @@ for my $gene ( @order ) {
         $type = 'internal';
         }
         $cds->[-1] = "exontype \"$type\"; ".$cds->[-1];
+	$cds->[7]  = ( $running % 3);
+	$running += abs($cds->[4] - $cds->[3]) + 1;
 	$i++;
      }
 
     my ($fexon,$lexon) = ($ordered_cds[0], $ordered_cds[-1]);
     if( $fexon->[6] eq '+' ) {
+	#$fexon->[-1] =~ s/exontype\s+\S+\s*//;
 	unshift @ordered_cds, [$fexon->[0], $fexon->[1], 'start_codon',
 		   $fexon->[3],
 		   $fexon->[3] + 2,
 		   $fexon->[5],
 		   $fexon->[6],
-		   $fexon->[7],
+		   '.',
 		   $fexon->[8]];
-	$ordered_cds[0]->[-1] =~ s/exontype\s+\S+\s"//;
 	$fexon->[3] += 3;
     } else {
+	my $grp = $fexon->[8];
+	$grp =~ s/exontype\s+\S+\s*//;
 	print join("\t", $fexon->[0], $fexon->[1], 'start_codon',
 		   $fexon->[4]-2,
 		   $fexon->[4],
 		   $fexon->[5],
 		   $fexon->[6],
-		   $fexon->[7],
-		   $fexon->[8]), "\n";	
+		   '.',
+		   $grp), "\n";	
 	$fexon->[4] -= 3;
     }
     
@@ -97,15 +102,16 @@ for my $gene ( @order ) {
 	    print "last exon ",$db->seq($lexon->[0],
 					$lexon->[4] => $lexon->[3]),"\n"; 
 	}
+	my $grp = $lexon->[8];
+	$grp =~ s/exontype\s+\S+\s*//;
 	push @ordered_cds, [$lexon->[0], $lexon->[1], 'stop_codon',
 			    $lexon->[3],
 			    $lexon->[3] + 2,
 			    $lexon->[5],
 			    $lexon->[6],
-			    $lexon->[7],
-			    $lexon->[8],
+			    '.',
+			    $grp,
 			    ];
-	$ordered_cds[-1]->[-1] =~ s/exontype\s+\S+\s+//;
 	$lexon->[3] += 3;
 	if( $debug ) {
 	    print "last exon ",$db->seq($lexon->[0],
@@ -119,14 +125,15 @@ for my $gene ( @order ) {
 	    print "last exon ",$db->seq($lexon->[0],
 					$lexon->[3] => $lexon->[4]),"\n"; 
 	}
+	my $grp = $lexon->[8];
+	$grp =~ s/exontype\s+\S+\s*//;
 	push @ordered_cds,[$lexon->[0], $lexon->[1], 'stop_codon',
 		   $lexon->[4]-2,
 		   $lexon->[4],
 		   $lexon->[5],
 		   $lexon->[6],
-		   $lexon->[7],
-		   $lexon->[8]];
-	$ordered_cds[-1]->[-1] =~ s/exontype\s+\S+\s+//;
+		   '.',
+		   $grp];
 	$lexon->[4] -= 3;
 	if( $debug )  {
 	    print "last exon ",$db->seq($lexon->[0],
