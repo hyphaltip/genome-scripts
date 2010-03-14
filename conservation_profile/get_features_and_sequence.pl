@@ -1,11 +1,8 @@
 #!/usr/bin/perl -w
 use strict;
-use strict;
-
 
 # Algorithm
 # -- get coordinates of some features
-# -- Grab alignment slices 
 
 use Bio::DB::SeqFeature::Store;
 use Bio::SeqIO;
@@ -54,11 +51,17 @@ my $utr5out = Bio::SeqIO->new(-format => 'fasta',
 			      -file   => ">$odir/$dbname.UTR5.fasta");
 my $cdsout = Bio::SeqIO->new(-format => 'fasta',
 			      -file   => ">$odir/$dbname.CDS.fasta");
+my $exonout = Bio::SeqIO->new(-format => 'fasta',
+			      -file   => ">$odir/$dbname.exon.fasta");
 my $intronout = Bio::SeqIO->new(-format => 'fasta',
 			      -file   => ">$odir/$dbname.intron.fasta");
 
-while( my $gene = $iter->next_seq ) {
-    my ($gname) = $gene->get_tag_values('Note');
+GENE: while( my $gene = $iter->next_seq ) {
+    my ($gname);
+    for my $tag ( qw(Note locus_tag) ) {
+	($gname) = $gene->get_tag_values($tag);
+	last if defined $gname;
+    }
     if( defined $gname ) {
 	$gname =~ s/^\"//;
         $gname =~ s/\"$//;
@@ -66,10 +69,10 @@ while( my $gene = $iter->next_seq ) {
     if( ! defined $gname || $gname !~ /^NCU/ ) {
 	$gname = $gene->name;
     }
-    warn("$gname\n") if $debug;
+    warn("$gname ", $gene->location->to_FTstring(),"\n") if $debug;
     for my $mRNA ( $gene->get_SeqFeatures ) {
 	warn(" $mRNA \n") if $debug;
-	my ($transcript,$utr5,$utr3,$cds);
+	my ($transcript,$utr5,$utr3,$cds,$exon);
 	my ($min,$max,$strand,$lastexon,$icount);	
 
 	for my $exon ( sort { $a->start * $a->strand <=> 
@@ -107,7 +110,7 @@ while( my $gene = $iter->next_seq ) {
 					    $intron_start => $intron_end);
 		if( ! defined $iseqobj ) {
 		    warn("cannot find ",$gene->seq_id, ":$intron_start..$intron_end\n");
-		    die;
+		    next GENE;
 		} else {
 		    $iseqobj = $iseqobj->seq;
 		}
@@ -131,6 +134,7 @@ while( my $gene = $iter->next_seq ) {
 	}
 	if( ! defined $min || ! defined $max ) {
 		warn("no min/max for ",$mRNA->name,"\n");
+		next;
 	}
 	my $locstr = sprintf($strand < 0 ? "complement(%d..%d)" : "%d..%d",
 			     $min,$max);
@@ -200,6 +204,7 @@ while( my $gene = $iter->next_seq ) {
 	$min = undef;
 	$max = undef;
 	$strand = undef;
+	my $exonct = 1;
 	for my $cdso (  sort { $a->start * $a->strand <=> 
 			      $b->start * $b->strand } 
 		       $mRNA->get_SeqFeatures('cds') ) {
@@ -210,6 +215,15 @@ while( my $gene = $iter->next_seq ) {
 	    $max = $cdso->end unless( defined $max && 
 				     $max < $cdso->end);
 	    $strand = $cdso->strand;
+	    $exonout->write_seq(Bio::Seq->new(-display_id => sprintf("%s.exon.%d",
+								     $mRNA->name,
+								     $exonct++,
+								     ),
+					      -desc => sprintf("%s gene=%s",
+							       $cdso->location->to_FTstring,
+							       $gname),
+					      -seq=>$cdso->seq->seq));
+								     
 	}
 	if( $cds ) {
 	    $locstr = sprintf($strand < 0 ? "complement(%d..%d)" : "%d..%d",
@@ -225,6 +239,7 @@ while( my $gene = $iter->next_seq ) {
 				-seq => $cds));
 	}
     }
+    last if $debug;
 }
 
 
