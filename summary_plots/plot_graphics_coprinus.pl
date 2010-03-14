@@ -60,6 +60,10 @@ use constant TRNA => 'coprinus_trna.tab';
 use constant TE_REPEAT => 'coprinus_TE_repeats.tab';
 
 use constant CEN_TEL => 'coprinus_CEN_TEL.tab';
+
+use constant DS_DN_AVG => 'coprinus_avg_ds.tab';
+use constant DS_DN_AVG_INVERT => 'coprinus_avg_ds_invert.tab';
+
 # TRACK COLORS - COLLECT HERE FOR EASY ACCESS
 use constant BLOCKS_COLOR  => 'steelblue';
 use constant BLOCKS_COLOR_REV  => 'goldenrod';
@@ -88,6 +92,8 @@ use constant FISH_SIGNIFBLOCKS_COLOR => 'darkgreen';
 use constant CENTROMERE_COLOR => 'black';
 use constant TELOMERE_COLOR   => 'red';
 
+use constant DS_COLOR => 'blue';
+use constant DN_COLOR => 'red';
 # Font sizes...
 use constant LABEL_SIZE    => '12';
 
@@ -107,6 +113,9 @@ my %labels = (
 	       te_repeat       => 'Transposable elements / 50 kb',
 	       recombination_rates => 'Recombination rate',
 	       ssr             => 'SSRs',
+	       dS              => 'Paralogs dS',
+	       dSinv              => 'Paralogs dS (inverted)',
+	       dN              => 'Paralogs dN',
 	       tRNA            => 'tRNA genes / 50 kb',
 	       fish_blocks     => 'FISH synteny blocks',
 	       fish_blocks_all  => 'FISH synteny blocks',
@@ -129,6 +138,9 @@ my %ylabels = (
 	       wd40_domains    => 'wd40domains',
 	       recombination_rates       => 'recombination',
 	       ssr             => 'SSRs',
+	       dS              => 'dS',
+	       dSinv              => 'dS-inv',
+	       dN              => 'dN',
 	       tRNA            => 'tRNA',
 	       fish_blocks     => 'fish_blocks',
 	       fish_blocks_all => 'fish_blocks_all',
@@ -154,6 +166,9 @@ my %units = (
 	     wd40_domains    => 'WD40 Domains',
 	     recombination_rates       => 'Recombination rates',
 	     ssr             => 'SSRs',
+	     dS              => 'dS/50kb',
+	     dSinv              => 'dS-inv/50kb',
+	     dN              => 'dN/50kb',
 	     tRNA            => 'tRNA genes',
 	     fish_blocks     => 'FISH blocks',
 	     fish_blocks_all     => 'FISH blocks',
@@ -164,7 +179,7 @@ my %units = (
 use constant TOP           => 40;
 use constant TRACK_HEIGHT  => 40;
 use constant TRACK_SPACE   => 40;
-use constant TOTAL_TRACKS  => 9.5;
+use constant TOTAL_TRACKS  => 11.5;
 
 # OLD VALUES FOR TOP ALIGNED LABEL
 use constant TRACK_LEFT    => 35;
@@ -252,6 +267,18 @@ my $centromere = Windows->new('centromere'); # CENTROMERE & TELOMERE locations
 $centromere->parse_blocks(File::Spec->catfile($DIR,CEN_TEL),
 			  qw(chrom start stop type));
 
+my $dS = Windows->new('dS'); # dS
+$dS->parse(File::Spec->catfile($DIR,DS_DN_AVG),
+	   qw(scaffold start_position dS));
+
+my $dS_invert = Windows->new('dSinv'); # dS
+$dS_invert->parse(File::Spec->catfile($DIR,DS_DN_AVG_INVERT),
+	   qw(scaffold start_position dS));
+
+#my $dN = Windows->new('dN'); # dS
+#$dN->parse(File::Spec->catfile($DIR,DS_DN_AVG),
+#	   qw(scaffold start_position dN));
+
 my $settings;
 
 for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] } 
@@ -284,6 +311,9 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
     plot('orphans',$orphans,'normalized',ORPHANS_COLOR);
     plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
     plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
+    #plot_numeric('dN',$dN,1,DN_COLOR);
+    plot_numeric('dS',$dS,3,DS_COLOR);
+    plot_numeric('dSinv',$dS_invert,2,DS_COLOR);
 
     plot_fish_blocks($fish_blocks_all,$fish_blocks_signif,
 		     FISH_BLOCKS_COLOR,
@@ -835,24 +865,25 @@ sub plot_posneg_numeric {
 }
 
 sub plot_numeric { 
-    my ($label,$obj) = @_;
+    my ($label,$obj,$range,$color,$back) = @_;
     my $PLOT_BY = 'average';
     my $chrom  = $CONFIG->{chrom};
     my $xscale = $CONFIG->{xscale};
     my $img    = $CONFIG->{img};
     my $count  = $CONFIG->{count};
     
-    my $color = $settings->{red};
-    my $black = $settings->{red};
+    $color = $color ? $settings->{$color} : $settings->{red};
+    $back = $back ? $settings->{$back} : $settings->{black};
     
     # Calculate my own yscale
-    my $range;
-    if ($label eq 'pi') {
-	$range = 0.06;
-    } elsif ($label eq 'segsites') {
-	$range = 100;
-    } else {
-	$range = 1;
+    unless( defined $range ) {
+	if ($label eq 'pi') {
+	    $range = 0.06;
+	} elsif ($label eq 'segsites') {
+	    $range = 100;
+	} else {
+	    $range = 1;
+	}
     }
 
     # The baseline for these plots will be 0, centered in the middle of the plot
