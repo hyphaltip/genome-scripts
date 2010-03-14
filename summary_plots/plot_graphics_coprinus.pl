@@ -114,7 +114,7 @@ my %labels = (
 	       recombination_rates => 'Recombination rate',
 	       ssr             => 'SSRs',
 	       dS              => 'Paralogs dS',
-	       dSinv              => 'Paralogs dS (inverted)',
+	       dSinv              => 'Paralogs 1/dS',
 	       dN              => 'Paralogs dN',
 	       tRNA            => 'tRNA genes / 50 kb',
 	       fish_blocks     => 'FISH synteny blocks',
@@ -167,7 +167,7 @@ my %units = (
 	     recombination_rates       => 'Recombination rates',
 	     ssr             => 'SSRs',
 	     dS              => 'dS/50kb',
-	     dSinv              => 'dS-inv/50kb',
+	     dSinv              => '1/dS/50kb',
 	     dN              => 'dN/50kb',
 	     tRNA            => 'tRNA genes',
 	     fish_blocks     => 'FISH blocks',
@@ -267,13 +267,13 @@ my $centromere = Windows->new('centromere'); # CENTROMERE & TELOMERE locations
 $centromere->parse_blocks(File::Spec->catfile($DIR,CEN_TEL),
 			  qw(chrom start stop type));
 
-my $dS = Windows->new('dS'); # dS
-$dS->parse(File::Spec->catfile($DIR,DS_DN_AVG),
-	   qw(scaffold start_position dS));
+#my $dS = Windows->new('dS'); # dS
+#$dS->parse(File::Spec->catfile($DIR,DS_DN_AVG),
+#	   qw(scaffold start_position dS));
 
 my $dS_invert = Windows->new('dSinv'); # dS
 $dS_invert->parse(File::Spec->catfile($DIR,DS_DN_AVG_INVERT),
-	   qw(scaffold start_position dS));
+	   qw(scaffold start_position dS_inv));
 
 #my $dN = Windows->new('dN'); # dS
 #$dN->parse(File::Spec->catfile($DIR,DS_DN_AVG),
@@ -312,8 +312,8 @@ for my $chrom (sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
     plot('orthologs',$orthos,'normalized',ORTHOS_COLOR);
     plot('paralogs',$paralogs,'normalized',PARALOGS_COLOR);
     #plot_numeric('dN',$dN,1,DN_COLOR);
-    plot_numeric('dS',$dS,3,DS_COLOR);
-    plot_numeric('dSinv',$dS_invert,2,DS_COLOR);
+    #plot_numeric('dS',$dS,3,DS_COLOR);
+    plot_numeric('dSinv',$dS_invert,1,DS_COLOR);
 
     plot_fish_blocks($fish_blocks_all,$fish_blocks_signif,
 		     FISH_BLOCKS_COLOR,
