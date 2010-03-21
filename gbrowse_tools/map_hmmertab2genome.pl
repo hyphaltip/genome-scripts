@@ -30,7 +30,7 @@ use Bio::DB::SeqFeature::Store;
 use Bio::Location::Simple;
 
 use Getopt::Long;
-my ($user,$pass,$dbname,$host) = qw(gbUser gBr0wse);
+my ($user,$pass,$dbname,$host) = qw();
 
 $host ='localhost';
 my $prefix;
@@ -56,7 +56,7 @@ $tabfile = shift @ARGV unless defined $tabfile;
 unless(  defined $dbname ) {
     die("no dbname provided\n");
 }
-
+warn("$user $pass\n");
 ($user,$pass) = &read_cnf($user,$pass) unless $pass && $user;
 my $dsn = sprintf('dbi:mysql:database=%s;host=%s',$dbname,$host);
 my $dbh = Bio::DB::SeqFeature::Store->new(-adaptor   => 'DBI::mysql',
