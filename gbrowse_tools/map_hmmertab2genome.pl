@@ -56,7 +56,6 @@ $tabfile = shift @ARGV unless defined $tabfile;
 unless(  defined $dbname ) {
     die("no dbname provided\n");
 }
-warn("$user $pass\n");
 ($user,$pass) = &read_cnf($user,$pass) unless $pass && $user;
 my $dsn = sprintf('dbi:mysql:database=%s;host=%s',$dbname,$host);
 my $dbh = Bio::DB::SeqFeature::Store->new(-adaptor   => 'DBI::mysql',
@@ -88,10 +87,10 @@ while(<$fh>) {
 	 $evalue = $ivalue;	 
     }
     next if $evalue > $cutoff;
+    $gene_name =~ s/-mRNA-\d+$//;
     $seen{"$gene_name.$domain"}++;
-     
+    
     my ($gene) = $dbh->get_features_by_name($gene_name);
-
     unless ( defined $gene ) {
 	($gene) = $dbh->features(-type => ['gene'],
 				 -attributes => {locus_tag => $gene_name});
@@ -100,9 +99,10 @@ while(<$fh>) {
 	    next;
 	}
     }
-    
+
     my @exons;
-    warn("gene name is $gene_name\n") if $debug;
+    warn("gene name is $gene_name for $gene\n") if $debug;
+    
     for my $mRNA ( $gene->get_SeqFeatures ) {
 	for my $cds ( $mRNA->CDS ) {
 	    warn($cds->to_FTstring, "\n") if $debug;
@@ -150,4 +150,3 @@ sub read_cnf {
     }
     return ($user,$pass);
 }
-
