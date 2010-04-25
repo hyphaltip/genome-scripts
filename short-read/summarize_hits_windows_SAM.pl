@@ -11,8 +11,8 @@ my $window_size = 1000;
 my $debug = 0;
 my $features;
 my $fa;
-my $lookup;
-GetOptions(
+my $lookup; # a summary table of short names to long names of strain files
+GetOptions( 
 	   'w|window:i' => \$window_size,
 	   'v|verbose!' => \$debug,
 	   'f|gff|feature:s' => \$features,
