@@ -5,7 +5,7 @@ use Bio::DB::Sam;
 use Getopt::Long;
 
 my $debug = 0;
-my $features;
+my $features; # these are features to ignore
 GetOptions(
 	   'v|verbose!' => \$debug,
 	   'f|gff|feature:s' => \$features,
@@ -19,17 +19,19 @@ my @bases = qw(C A G T);
 
 my %skip;
 if( $features ) {
-    open(my $fh => $features ) || die $!;
+    open(my $fh => $features ) || die "$features: $!";
     while(<$fh>) {
 	next if /^\#/;
-	my ($seqid,$src,$type,$start,$end) = split;
-	push @{$skip{$seqid}}, [ $start, $end];
+	my ($seqid,$src,$type,$start,$end,undef,$strand) = split;
+	warn("$seqid\n");
+	push @{$skip{$seqid}}, [ $start, $end,$strand eq '+' ? 1 : -1];
     }
 }
 my %counts;
 my @targets    = $sam->seq_ids;
 for my $target ( @targets ) {
-    my $iterator   = $sam->features(-iterator=>1, -seq_id => $target);
+    my $iterator   = $sam->features(-iterator => 1, 
+				    -seq_id   => $target);
 
     while( my $aln = $iterator->next_seq ) {
 	my $seqid  = $aln->seq_id;
