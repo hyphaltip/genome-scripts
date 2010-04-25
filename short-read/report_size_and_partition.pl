@@ -4,6 +4,7 @@ use Getopt::Long;
 use File::Spec;
 use List::Util qw(sum);
 
+# this expects SOAP output
 my %expected_bases = map { $_ => 1 } qw(C A G T);
 my %compress = ('bz2' => 'bzcat',
 		'gz'  => 'zcat',
@@ -20,7 +21,7 @@ for my $file ( @ARGV ) {
     my (undef,undef,$fname) = File::Spec->splitpath($file);
     my ($base,$ext) = split(/\.([^\.]+)$/,$fname,2);
     my $fh;
-    if( $ext ) {
+    if( $ext && defined $compress{$ext}) {
 	open($fh => "$compress{$ext} $file |") || die $!;
     } else {
 	open($fh => "<$file") || die $!;
