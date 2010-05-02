@@ -185,12 +185,14 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	
 	if( $stop_codon ) {
 	    if( $strand_val > 0 ) {		
-		warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
+		warn("stop codon is ", join("\t", @{$stop_codon}), " cds was ",$cds[-1]->[3], "..",$cds[-1]->[4],"\n") if $debug;
 		$cds[-1]->[4] = $stop_codon->[4];
+		warn("cds updated to ", $cds[-1]->[3], "..",$cds[-1]->[4],"\n") if $debug;
 		$translation_stop = $stop_codon->[4];
 	    } else {
 		warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
 		$cds[-1]->[3] = $stop_codon->[3];
+		warn("cds updated to ", $cds[-1]->[3], "..",$cds[-1]->[4],"\n") if $debug;
 		$translation_stop = $stop_codon->[3];
 	    }
 	  } else {
@@ -283,7 +285,9 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	      }
 	      #3' UTR on +1 strand
 	      if ( $translation_stop < $exon->[4] ) {
+		  warn("stop is $translation_stop and exon end is ", $exon->[4],"\n") if $debug;
 		if ( $translation_stop < $exon->[3] ) {
+		    warn("whole exon is UTR for $translation_stop is < ", $exon->[3],"\n") if $debug;
 		  # whole exon is 3' UTR
 		  push @{$utrs{'3utr'}},
 		    [ $exon->[3],
@@ -301,6 +305,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
 		} else { 
+		    warn("making a partial 3' UTR from $translation_stop -> ",$exon->[4],"\n");
 		  # make UTR from partial exon
 		  push @{$utrs{'3utr'}},
 		    [ $exon->[3],
@@ -308,7 +313,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			   ( $exon->[0],
 			     $exon->[1],
 			     'three_prime_utr',
-			     $stop_codon +1,
+			     $translation_stop +1,
 			     $exon->[4],
 			     '.',
 			     $strand,
