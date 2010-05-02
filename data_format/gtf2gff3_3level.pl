@@ -305,7 +305,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
 		} else { 
-		    warn("making a partial 3' UTR from $translation_stop -> ",$exon->[4],"\n");
+		    warn("making a partial 3' UTR from $translation_stop -> ",$exon->[4],"\n") if $debug;
 		  # make UTR from partial exon
 		  push @{$utrs{'3utr'}},
 		    [ $exon->[3],
