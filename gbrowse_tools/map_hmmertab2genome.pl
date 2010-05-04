@@ -108,6 +108,10 @@ while(<$fh>) {
 	    warn($cds->to_FTstring, "\n") if $debug;
 	    push @exons, $cds;
 	}    
+	if( ! @exons ) {
+	    warn(" cannot find exons for $mRNA\n");
+	    next;
+	}
 	my $genemap = Bio::Coordinate::GeneMapper->new(-in    => 'peptide',
 						       -out   => 'chr',
 						       #-cds   => $mRNA,
