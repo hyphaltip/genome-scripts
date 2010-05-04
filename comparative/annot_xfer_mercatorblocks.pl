@@ -106,7 +106,7 @@ while( my $gene = $iter->next_seq ) {
 	    if( $genome eq $genome_to ) {
 		$seen = 1;
 		# get that segment in the 'TO' genome
-		my $segment = $dbh_to->segment($chrom,$start,$end);
+		my ($segment) = $dbh_to->segment($chrom,$start,$end);
 		# extract the gene(s) in this interval
 		my @genes = $segment->features(-type => $to_feature);
 		if( @genes ) {
