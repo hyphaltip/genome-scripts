@@ -108,6 +108,10 @@ while( my $gene = $iter->next_seq ) {
 		# get that segment in the 'TO' genome
 		my ($segment) = $dbh_to->segment($chrom,$start,$end);
 		# extract the gene(s) in this interval
+		if( ! defined $segment ) { 
+			warn("cannot find segment in the DB for $chrom:$start..$end ($genome)\n");
+			next;
+		}
 		my @genes = $segment->features(-type => $to_feature);
 		if( @genes ) {
 		    for my $g ( @genes ) {
