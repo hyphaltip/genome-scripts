@@ -133,7 +133,7 @@ FILE: for my $file ( readdir(DIR) ) {
 	    $transcriptid = $lookup{$geneid};
 	}
 	if( ! defined $geneid || ! defined $transcriptid ) {
-	    warn("cannot find geneid or transriptid in $lastcol\n");
+	    warn("cannot find geneid or transcriptid in $lastcol\n");
 	    next FILE;
 	}
 	my $typetag = $type eq 'CDS' ? CDSEXON : EXON;
