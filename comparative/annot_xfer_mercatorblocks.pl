@@ -89,6 +89,10 @@ while( my $gene = $iter->next_seq ) {
 
     my $name = $gene->name;
     my ($mRNA) = $gene->get_SeqFeatures('mRNA'); # 1st mRNA for now
+    if( ! defined $mRNA ) {
+	warn("no mRNA for $name\n");
+	next;
+    }
     my $t_name = $mRNA->name;
     # This program requires the sliceAlignment program from
     # MERCATOR which is part of Colin Dewey's tools
