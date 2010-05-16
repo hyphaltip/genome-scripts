@@ -1,7 +1,13 @@
 #!/usr/bin/perl -w
 use strict;
+use Getopt::Long;
 
 my $single_copy = 1; 
+# if you don't want only single copy do
+# --no-single
+
+
+GetOptions('single!' => \$single_copy);
 my @order = @ARGV;
 my @pref = map { /vs-(\S+)\.tab/ } @order;
 
