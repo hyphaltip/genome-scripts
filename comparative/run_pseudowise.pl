@@ -3,7 +3,7 @@ use strict;
 use Bio::Root::IO;
 use Getopt::Long;
 
-my ($run_wise,$run_fastx, $run_exonerate) = (1,1,1);
+my ($run_wise,$run_fasta, $run_exonerate) = (0,1,1);
 
 GetOptions(
 	   'w|wise!' => \$run_wise,
