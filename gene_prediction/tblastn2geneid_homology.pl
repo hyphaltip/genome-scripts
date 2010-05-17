@@ -21,6 +21,7 @@ GetOptions(
 	   'f|format:s'      => \$informat,
 	   'v|debug!'        => \$debug,
 	   'best!'           => \$best_only,
+	   'e|evalue:s'      => \$evalue,
     );
 
 
@@ -112,7 +113,7 @@ sub make_pair {
 			$hsp->{'hend'}, 
 			$hsp->{'pid'},
 			$strand, 
-			'.'
-			),"\n";
+			'.',
+			"Target=$q"),"\n";
     }
 }
