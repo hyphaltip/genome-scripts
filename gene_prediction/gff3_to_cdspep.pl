@@ -67,7 +67,7 @@ for my $genome ( readdir(DIR) ) {
 #					     -dsn     => $dbdir,
 					     -dir     => "$dir/$genome");
 
-    my %types    = $db->types;
+    my %types = $db->types;
     for my $t ( grep { /gene:/ } keys %types ) {
 	next unless $t =~ /gene:(\S+)/;
 	next if $t =~ /genewise/;
