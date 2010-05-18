@@ -9,11 +9,13 @@ my $outformat = 'stockholm';
 my ($alndir,$odir);
 my $stem = 'mavid.mfa';
 my $informat = 'fasta';
+my $ext = 'stk';
 GetOptions('a|aln|dir:s'   => \$alndir,
 	   'o|out:s'       => \$odir,
 	   's|stem:s'      => \$stem,
 	   'if|informat:s' => \$informat,
 	   'of|outformat:s'=> \$outformat,
+	   'e|ext:s'       => \$ext,
 	   );
 
 
@@ -38,7 +40,7 @@ for my $dir ( readdir(DIR) ) {
     next unless -f $target && ! -z $target;
     my $in = Bio::AlignIO->new(-format => $informat,
 			       -file   => $target);
-    my $ofile = File::Spec->catfile($odir,"$dir.stk");
+    my $ofile = File::Spec->catfile($odir,"$dir.$ext");
     my $out = Bio::AlignIO->new(-format => $outformat,
 				-file   => ">$ofile");
     if( my $aln = $in->next_aln ) {
