@@ -55,6 +55,9 @@ while(<$fh>) {
 	     -id   => $querypref,
 	     -seq  => $qdb->seq($qname,$qstart => $qend),
 	     );
+	if( ! $qseq_obj->length ) { 
+	 die("couldn't find sequence $qname in the qdb $query\n");
+	}
 	$out_query->write_seq($qseq_obj);
 	
 	my $out_ref = Bio::SeqIO->new(-format => 'fasta',
