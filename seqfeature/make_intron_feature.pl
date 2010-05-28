@@ -43,9 +43,15 @@ print $ofh "##gff-version 3\n";
 my $iter = $dbh->get_seq_stream(-type => $src);
 my (undef,$from1) = split(/:/,$src);
 my $count = 0;
+my $gene_count = 0;
 while( my $gene = $iter->next_seq ) {
+    $gene_count++;
     my $gene_name = $gene->name;
-    for my $mRNA ( $gene->get_SeqFeatures('mRNA') ) { # 1st mRNA for now
+    my @mRNA = $gene->get_SeqFeatures('mRNA');
+    if( ! @mRNA ) {
+	warn("no mRNA for $gene_name\n");
+    }
+    for my $mRNA ( @mRNA ) { # 1st mRNA for now
 	my $last_exon;
 	my $i = 1;
 	my $mRNA_name = $mRNA->load_id;
@@ -58,26 +64,27 @@ while( my $gene = $iter->next_seq ) {
 		if( $exon->strand < 0 ) {
 		    ($start,$end) = ( $last_exon->start-1,
 				      $exon->end + 1);
-		} else {
-		    print $ofh join("\t",
-				    $gene->seq_id,
-				    $gene->source,
-				    'intron',
-				    $start,$end, '.',
-				    $exon->strand,
-				    '.',
-				    sprintf('ID=mRNA-%s.i%d;Gene=%s',
-					    $mRNA_name,
-					    $i++,
-					    $gene_name)),"\n";
 		}
+		print $ofh join("\t",
+				$gene->seq_id,
+				$gene->source,
+				'intron',
+				$start,$end, '.',
+				$exon->strand,
+				'.',
+				sprintf('ID=mRNA-%s.i%d;Gene=%s',
+					$mRNA_name,
+					$i++,
+					$gene_name)),"\n";	    
 	    }
 	    $last_exon = $exon;
 	}
+	last;
     }
     last if $debug && $count++ > 10;
 }
 
+warn("gene count $gene_count\n");
 sub read_cnf {
     my ($user,$pass) = @_;
     if( -f "$HOME/.my.cnf") {
