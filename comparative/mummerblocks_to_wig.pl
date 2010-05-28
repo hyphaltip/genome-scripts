@@ -274,7 +274,7 @@ sub percent_id {
 	$total++;
     }
     unless( $total ) {
-	warn("no data in seqs\n");
+	warn("no data in seqs (@seqs)\n");
 	return 0;
     } else {
 	return POSIX::floor(100 * ($identical / $total));
