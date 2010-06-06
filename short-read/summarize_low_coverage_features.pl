@@ -7,14 +7,14 @@ use Getopt::Long;
 my $dir =  'gff3';
 my $domains = 'batrachochytrium_dendrobatidis_JEL423_1.InterPro.tab';
 my $bamfolder =  '.';
-my $genome = ;
+my $genome;
 my $feature = 'gene:Broad';
 GetOptions(
-	   'd|dir:s' => \$dir,
-	   'domains:s'=> \$domains,
+	   'gff:s'         => \$dir,
+	   'domains:s'     => \$domains,
 	   'b|bamfolder:s' => \$bamfolder,
-	   'g|genome:s' => \$genome,
-	   'f|feature:s' => \$feature,
+	   'g|genome:s'    => \$genome,
+	   'f|feature:s'   => \$feature,
 	   );
 
 my $db =  Bio::DB::SeqFeature::Store->new
