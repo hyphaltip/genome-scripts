@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl -w
 use strict;
 my $window = 0;
@@ -25,7 +26,8 @@ my %sams;
 opendir(DIR, $bamfolder) || die $!;
 my @sam_names;
 for my $d ( readdir(DIR)) {
-  next unless $d =~ /(\S+)\.bam/;
+  next unless $d =~ /(\S+)\.bam$/;
+
   push @sam_names, $1;
   $sams{$1} = Bio::DB::Sam->new(-bam  => "$bamfolder/$d",
 				-fasta=> $genome,
@@ -47,7 +49,7 @@ while (<$ifh> ) {
 
 my @features   = $db->get_features_by_type($feature);
 open(my $fh => ">Gene_reads.tab") || die $!;
-print join("\t", qw(GENE), (map { $_."_READ_COUNT" } @sam_names),
+print $fh join("\t", qw(GENE), (map { $_."_READ_COUNT" } @sam_names),
 	   qw(DOMAINS GO)), "\n";
 
 for my $f ( @features ) {
