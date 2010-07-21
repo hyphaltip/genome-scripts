@@ -12,22 +12,22 @@ use Env qw(HOME);
 my ($user,$pass,$host,$dbname) = ('','','localhost');
 
 my $src = 'gene:AUGUSTUS';
-my $output;
+my $outname;
 my ($min_reads) = 10;
 my @bams;
 my $genome;
 my ($debug);
 GetOptions(
-	   'v|verbose!' => \$debug,
-	   'u|user:s' => \$user,
-	   'p|pass:s' => \$pass,
-	   'host:s'   => \$host,
+	   'v|verbose!'  => \$debug,
+	   'u|user:s'    => \$user,
+	   'p|pass:s'    => \$pass,
+	   'host:s'      => \$host,
 	   'db|dbname:s' => \$dbname,
-	   'b|bam:s'   => \@bams,
-	   'g|genome:s'=> \$genome,
-	   's|src:s'   => \$src,
+	   'b|bam:s'     => \@bams,
+	   'g|genome:s'  => \$genome,
+	   's|src:s'     => \$src,
 	   'm|min_reads' => \$min_reads,
-	   'output:s'  => \$output,
+	   'o|output:s'  => \$outname,
 	   );
 
 unless(  defined $dbname ) {
@@ -50,7 +50,8 @@ my %bam_mapped;
 my @bam_names;
 
 for my $bam ( @bams ) {
-    if( $bam =~ /(\S+)\.bam/ ) {
+    my (undef,undef,$bamshort) = File::Spec->splitpath($bam);
+    if( $bamshort =~ /(\S+)\.bam/ ) {
 	my $stem = $1;
 	$stem =~ s/\.clp_\d+\S*//;
 	$bam_db{$stem} = Bio::DB::Sam->new(-bam => $bam,
@@ -68,8 +69,9 @@ for my $bam ( @bams ) {
     }
 }
 
-if( $output && $output ne '-' ) { 
-    open($output => ">$output" ) || die $!;
+my $output;
+if( $outname && $outname ne '-' ) { 
+    open($output => ">$outname" ) || die $!;
 } else {
     $output = \*STDOUT;
 }
@@ -91,13 +93,13 @@ print $output join("\t",'MRNA',
 while( my $gene = $iter->next_seq ) {
     my $name = $gene->name;
     my $status = 'NO';
-    print join("\t", 
-	       $name,
-	       $gene->seq_id,
-	       $gene->start,
-	       $gene->end,
-	       $gene->strand < 0 ? 'R' : 'F',"",
-	       );
+    print $output join("\t", 
+		       $name,
+		       $gene->seq_id,
+		       $gene->start,
+		       $gene->end,
+		       $gene->strand < 0 ? 'R' : 'F',"",
+		       );
     my @row;
     my $all_total = 0;
     my $gene_len = $gene->length / 1_000;
@@ -124,7 +126,7 @@ while( my $gene = $iter->next_seq ) {
 				 (($count{$_} || 0)/$gene_len)
 				 / $bam_mapped{$bam_id}) } qw(FWD REV ALL);
     }
-    print join("\t", $status, @row,$all_total),"\n";
+    print $output join("\t", $status, @row,$all_total),"\n";
     last if $debug;
 }
 
