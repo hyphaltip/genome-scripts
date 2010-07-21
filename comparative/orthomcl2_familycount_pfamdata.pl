@@ -16,7 +16,7 @@ use strict;
 # by default domains with evalue > 0.01 are discarded if you want to adjust
 # this cutoff use -e or --evalue option
 
-
+use Getopt::Long;
 my $pfamdir;
 my $pfamext = 'tab';
 my $hmmerversion = 3;
