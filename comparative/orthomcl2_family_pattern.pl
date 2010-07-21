@@ -1,6 +1,19 @@
 #!/usr/bin/perl -w
 use strict;
+use Getopt::Long;
 
+my $groups;
+GetOptions(
+	   'g|lookup:s' => \$groups);
+
+my %groups;
+if( $groups ) {
+    open(my $fh => $groups) || die "cannot open $groups: $!";
+    while(<$fh>) {
+	my ($grpname,@members) = split;
+	for my $m ( @members ) { $groups{$m} = $grpname }
+    }
+}
 my $file = shift;
 mkdir("$file.patterns");
 my %sp;
@@ -16,11 +29,23 @@ while(<$fh>) {
 	$count{$sp}++;
 	$sp{$sp} = 1; # collecting all the species names
     }
-    my $str = join("-", sort keys %count);
+    my $str;
+    if( keys %count > 1 ) {
+	my %r;
+	for my $k ( keys %count ) {
+	    if(exists $groups{$k} ) {
+		$r{$groups{$k}}++;
+	    }
+	}	
+	$str =  join("-", sort keys %r);	
+    } else {
+	$str =  join("-", sort keys %count);
+    }
     push @{$patterns{$str}}, $group;
 }
 
-for my $p ( sort { scalar @{$patterns{$a}} <=> scalar @{$patterns{$b}} }  keys %patterns ) {
+for my $p ( sort { scalar @{$patterns{$a}} <=>
+		       scalar @{$patterns{$b}} }  keys %patterns ) {
     print join("\t",$p,scalar @{$patterns{$p}}),"\n";
     open(my $ofh => ">$file.patterns/$p.dat") || die $!;
     print $ofh join("\n", @{$patterns{$p}}),"\n";
