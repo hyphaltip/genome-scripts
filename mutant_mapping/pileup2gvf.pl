@@ -189,7 +189,9 @@ while(<$fh>) {
 		print $t2 ">alt\n$altpep\n";
 	    }
 	    my $effect;
-	    if( $altpep ne $pep ) {
+	    $pep    =~ s/\*$//;
+	    $altpep =~ s/\*$//;
+	    if( $altpep ne $pep ) {		
 		if( $altpep =~ /\*/ ) {
 		    $effect = 'sequence_variant_causing_nonsense_codon_change_in_transcript';
 		} else {
