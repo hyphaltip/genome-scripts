@@ -1,5 +1,8 @@
-This repository is for public scripts which do data formatting, collation, and analysis
+This repository is for public scripts which do data formatting, collation, and analysis.
+
+This is mainly Perl code for genome annotation and processing.
 
 Jason Stajich
-University of California, Berkeley
-jason[at]open-bio.org
+University of California, Riverside
+jason.stajich [at] ucr.edu
+http://lab.stajich.org
