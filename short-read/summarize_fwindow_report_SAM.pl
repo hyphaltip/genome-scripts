@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 use strict;
-
+use List::Util qw(sum);
 use Bio::DB::Sam;
 use Getopt::Long;
 
@@ -35,7 +35,7 @@ for my $bam ( @bam ) {
     
     open(my $perfh => ">$bamname.mRNA_windows.tab") || die $!;
     $perbamfh{$bamname} = $perfh;
-    print $perfh join("\t", qw(FEATURE TYPE CHROM START END STRAND FWD REV)), "\n";
+    print $perfh join("\t", qw(FEATURE TYPE CHROM START END STRAND FWD REV NOTE)), "\n";
 
     # summary stats for the library for normalization purposes
     open(STATS, "samtools flagstat $bam |") || die $!;
@@ -56,21 +56,24 @@ my @bases = qw(C A G T);
 open(my $fh => $features ) || die "$features: $!";
 
 print $allfh join("\t", qw(FEATURE TYPE CHROM START END STRAND), 
-	   map { ($_. '_SAME_',
-		  $_. '_OPP_',
-		  $_. '_TOTAL_NORM') } @order_bam), "\n";
+	   (map { ($_. '_SAME',
+		   $_. '_OPP',
+		   $_. '_TOTAL_NORM') } @order_bam),
+		  qw(NOTE)), "\n";
 
 my $size = 0;
 
 while(<$fh>) {
     next if /^\#/;
-    my ($seqid,$src,$type,$start,$end,undef,$strand,undef,$group) = split;
+    chomp;
+    my ($seqid,$src,$type,$start,$end,undef,$strand,undef,$group) = split(/\t/,$_,9);
     $strand = -1 if $strand eq '-';
     $strand = 1  if $strand eq '+';
 
     my %group = map { split(/=/,$_) } split(/;/,$group);
     my $name;
-    for my $n ( qw(Id ID Name Parent) ) {
+    my $note;
+    for my $n ( qw(Name Id ID Parent) ) {
 	if( exists $group{$n} ) {
 	    $name = $group{$n};
 	    last;
@@ -79,12 +82,14 @@ while(<$fh>) {
     unless ( defined $name ) {
 	die("need a parseable group from this line $_\n");
     }
+    $note = exists $group{'Note'} ? $group{'Note'} : '';
     my @counts;
     for my $bamfile ( @order_bam ) {
 	my %count_lib;
-	my @alignments   = $bamfiles{$bamfile}->{'sam'}->get_features_by_location(-seq_id => $seqid,
-										  -start  => $start,
-										  -end    => $end);
+	my @alignments   = $bamfiles{$bamfile}->{'sam'}->get_features_by_location
+	    (-seq_id => $seqid,
+	     -start  => $start,
+	     -end    => $end);
 	
 	for my $aln ( @alignments ) {
 	    my $qstart  = $aln->start;
@@ -117,17 +122,19 @@ while(<$fh>) {
 	}
 	# these are the accumulated counts of number of reads from Same and Opposite strands followed by the number
 	# of reads total normalized by the number mapped to the genome
-	push @counts, $count_lib{'same'} || 0, $count_lib{'opp'} || 0, sprintf("%.1f",($count_lib{'total'} || 0 ) / 
-									       $bamfiles{$bamfile}->{total_mapped});
-	my $ofh = $perbamfh{$bamfile};
-	print $ofh ("\t", $name, $type, $seqid, $start,$end, $strand, 
-				   $count_lib{'same'} || 0, 
-				   $count_lib{'opp'} || 0,
-				   ), "\n";
+	push @counts, $count_lib{'same'} || 0, $count_lib{'opp'} || 0, sprintf("%.1f",($count_lib{'total'} || 0 )/ $bamfiles{$bamfile}->{total_mapped});
+	my $ofh = $perbamfh{$bamfile};	
+	print $ofh join("\t", $name, $type, $seqid, $start,$end, $strand, 
+		    $count_lib{'same'} || 0, 
+		    $count_lib{'opp'} || 0,
+		    $note,
+			), "\n";
     }
-    print $allfh join("\t", $name, $type, $seqid, $start,$end, $strand, @counts), "\n";
+    if( sum(@counts) > 0 ) {
+	print $allfh join("\t", $name, $type, $seqid, $start,$end, $strand, @counts,
+			  $note), "\n";
+    }
 }
-
 
 sub overlaps {
     my ($f1_s,$f1_e,
