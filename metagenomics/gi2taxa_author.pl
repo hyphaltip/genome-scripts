@@ -1,3 +1,4 @@
+
 #!/usr/bin/perl -w
 use strict;
 use Getopt::Long;
@@ -158,19 +159,25 @@ if( ! -f $cache_gis || $force ) {
 
 $dbh->disconnect;
 
+
 if( @gis ) {
-    $query = Bio::DB::Query::GenBank->new(-db => 'nucleotide',
-					  -ids => \@gis);
-    my $stream = $remote->get_Stream_by_query($query);
     my %seen_authors;
-    while( my $seq = $stream->next_seq ) {
-	my @refs = $seq->get_Annotations('reference');
-	for my $ref ( @refs ) {
-	    my $authors = $ref->authors;
-	    $seen_authors{$authors}++;
+    while(@gis) {
+	my @testgis = splice(@gis,0,250);
+	$query = Bio::DB::Query::GenBank->new(-db => 'nucleotide',
+					      -ids => \@testgis);
+	my $stream = $remote->get_Stream_by_query($query);
+	while( my $seq = $stream->next_seq ) {
+	    my @refs = $seq->get_Annotations('reference');
+	    for my $ref ( @refs ) {
+		my $authors = $ref->authors;
+		$seen_authors{$authors}++;		
+		last;
+	    }
 	}
+	sleep(3);
     }
-    
+
     open($fh => ">authors_$target_genus.tab") || die $!;
     for my $r ( sort { $seen_authors{$b} <=> $seen_authors{$a} } keys %seen_authors ) {
 	print $fh join("\t", $r, $seen_authors{$r}), "\n";
