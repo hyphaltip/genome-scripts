@@ -116,6 +116,7 @@ SQL
 			    );
 my $missing = 0;
 my (%rank,%genus,%phyla);
+my (%name2id,%genus2phyla);
 while( <$fh>) {
     my ($gi) = split;    
     $query->execute($gi);
@@ -124,16 +125,23 @@ while( <$fh>) {
     warn("done query for gi=$gi\n") if $debug;    
     if( $res && @$res ) {
 	my ($taxon) = $tdb->get_taxon(-taxonid => $res->[0]);
-	$rank{$taxon->rank}++;
-	
-	my @lineage = $tree_functions->get_lineage_nodes($taxon);
-	my ($phylum) = grep { $_->rank eq 'phylum' } @lineage;
-	if( $phylum ) {
-	    $phyla{$phylum->scientific_name}++;
-	}
-	my ($g) = grep { $_->rank eq 'genus' } @lineage;
-	if( $g) {
-	    $genus{$g->scientific_name}++;
+	if( ! defined $taxon ) {
+	    warn("Cannot find taxa for taxid ", $res->[0], "\n");
+	    $missing++;
+	} else {
+	    $rank{$taxon->rank}++;
+	    my @lineage = $tree_functions->get_lineage_nodes($taxon);
+	    my ($phylum) = grep { $_->rank eq 'phylum' } @lineage;
+	    if( $phylum ) {
+		$phyla{$phylum->scientific_name}++;
+		$name2id{$phylum->scientific_name} = $phylum->id;
+	    }
+	    my ($g) = grep { $_->rank eq 'genus' } @lineage;
+	    if( $g) {
+		$genus{$g->scientific_name}++;
+		$genus2phyla{$g->scientific_name} = $phylum ? $phylum->scientific_name : 'Unranked';
+		$name2id{$g->scientific_name} = $g->id;
+	    }
 	}
     } else {	
 	$missing++;
@@ -145,18 +153,21 @@ while( <$fh>) {
 
 $dbh->disconnect;
 warn("missing $missing\n");
-open(my $ofh => ">rank.tab") || die $!;
+open(my $ofh => ">rank.csv") || die $!;
+print $ofh join(",",qw(RANK COUNT)),"\n";
 for my $r ( sort { $rank{$b} <=> $rank{$a} } keys %rank ) {
-    print $ofh join("\t", $r, $rank{$r}), "\n";
+    print $ofh join(",", $r, $rank{$r}), "\n";
 }
 
-open($ofh => ">genus.tab") || die $!;
+open($ofh => ">genus.csv") || die $!;
+print $ofh join(",",qw(TAXID GENUS COUNT PHYLA)),"\n";
 for my $r ( sort { $genus{$b} <=> $genus{$a} } keys %genus ) {
-    print $ofh join("\t", $r, $genus{$r}), "\n";
+    print $ofh join(",", $name2id{$r}, $r, $genus{$r},$genus2phyla{$r}), "\n";
 }
 
 
-open($ofh => ">phyla.tab") || die $!;
+open($ofh => ">phyla.csv") || die $!;
+print $ofh join(",",qw(TAXID PHYLA COUNT)),"\n";
 for my $r ( sort { $phyla{$b} <=> $phyla{$a} } keys %phyla ) {
-    print $ofh join("\t", $r, $phyla{$r}), "\n";
+    print $ofh join(",", $name2id{$r}, $r, $phyla{$r}), "\n";
 }
