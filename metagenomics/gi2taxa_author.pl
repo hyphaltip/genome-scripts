@@ -172,7 +172,7 @@ if( @gis ) {
 	    for my $ref ( @refs ) {
 		my $authors = $ref->authors;
 		$seen_authors{$authors}++;		
-		last;
+		last; 
 	    }
 	}
 	sleep(3);
