@@ -19,8 +19,10 @@ GetOptions('d|dir:s' => \$dir,
 
 mkdir($dir) unless -d $dir;
 
+open(my $R => ">$dir/summary_shortread_barplot.R" ) || die $!;
 for my $file ( @ARGV ) {
     my $base = $file;
+    print $R "pdf(\"$base.pdf\")\n";
     $base =~ s/\.bam$//;
     my $db = Bio::DB::Sam->new(-bam => $file,
 			       -fasta=>$genome);
@@ -43,6 +45,11 @@ for my $file ( @ARGV ) {
     
     open(my $rpt => ">$dir/$base.5_summary_sizes" ) || die $!;
     open(my $rptpct => ">$dir/$base.5_summary_sizes.percent" ) || die $!;
+    print $R "size5 <- read.table(\"$base.5_summary_sizes\",header=T,sep=\"\\t\",row.names=1)\n";
+    print $R "barplot(t(size5),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5\$V1,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
+    print $R "size5p <- read.table(\"$base.5_summary_sizes.percent\",header=T,sep=\"\\t\",row.names=1)\n";
+    print $R "barplot(t(size5p),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size (percent) - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5p\$V1,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
+
     my @lengths = sort { $a <=> $b } keys %counts;
     my @bases   = sort keys %expected_bases;
     print $rpt join("\t", qw(LENGTH),  @bases),"\n";
@@ -55,8 +62,14 @@ for my $file ( @ARGV ) {
     }
     close($rpt);
     close($rptpct);
+
     open($rpt => ">$dir/$base.3_summary_sizes" ) || die $!;
     open($rptpct => ">$dir/$base.3_summary_sizes.percent" ) || die $!;
+    print $R "size3 <- read.table(\"$base.3_summary_sizes\",header=T,sep=\"T\",row.names=1)\n";
+    print $R "barplot(t(size3),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size - 3' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size3\$V1,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
+    print $R "size3p <- read.table(\"$base.3_summary_sizes.percent\",header=T,sep=\"T\",row.names=1)\n";
+    print $R "barplot(t(size3p),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size (percent) - 3' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size3p\$V1,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
+    
     @lengths = sort { $a <=> $b } keys %counts;
     @bases   = sort keys %expected_bases;
     print $rpt join("\t", qw(LENGTH),  @bases),"\n";
