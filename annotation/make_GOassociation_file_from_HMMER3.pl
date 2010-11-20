@@ -21,7 +21,7 @@ GetOptions('c|p|prefix:s'  => \$centerPrefix,
 my ($user,$pass,$dsn) = read_cnf();
 $user ||= $USER;
 $dsn ||= 'localhost';
-warn("dbname is $dbname\n");
+#warn("dbname is $dbname\n");
 my $apph = GO::AppHandle->connect(-dbname =>$dbname, 
 				  -dbhost =>$dsn,
 				  -dbuser => $user,
@@ -62,7 +62,6 @@ while(<HMMERTABLE>){
 	for my $go ( @{$pfam2go{$domain}} ) {
 	    my ($goid,$godesc) = @$go;
 	    my $term = $apph->get_term({acc => $goid});
-
 	    my (undef,$code) = split(/_/,$term->type);
 	    $code = uc substr($code,0,1);
 	    next if $seen{$qname."_".$goid}++;
