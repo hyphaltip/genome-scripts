@@ -7,7 +7,7 @@ use Bio::DB::Sam;
 
 # this expects BAM files as the ARGV
 my %expected_bases = map { $_ => 1 } qw(C A G T);
-
+my @bases   = sort keys %expected_bases;
 my $dir = 'size_summary';
 my $minsize = 18;
 my $maxsize = 30;
@@ -50,8 +50,7 @@ for my $file ( @ARGV ) {
     print $R "size5p <- read.table(\"$base.5_summary_sizes.percent\",header=T,sep=\"\\t\",row.names=1)\n";
     print $R "barplot(t(size5p),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size (percent) - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5p\$V1,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
 
-    my @lengths = sort { $a <=> $b } keys %counts;
-    my @bases   = sort keys %expected_bases;
+    my @lengths = sort { $a <=> $b } keys %counts;    
     print $rpt join("\t", qw(LENGTH),  @bases),"\n";
     print $rptpct join("\t", qw(LENGTH), @bases),"\n";
     for my $c ( @lengths ) {
@@ -77,7 +76,7 @@ for my $file ( @ARGV ) {
 
     for my $c ( @lengths ) {
 	print $rpt join("\t", $c, map { $counts{$c}->{3}->{$_} } @bases), "\n";
-	my $sum = sum ( map { $counts{$c}->{5}->{$_} } @bases );
+	my $sum = sum ( map { $counts{$c}->{3}->{$_} } @bases );
 	print $rptpct join("\t", $c, map { sprintf("%.2f",100*$counts{$c}->{3}->{$_}/$sum) } @bases),
 	"\n";
     }
