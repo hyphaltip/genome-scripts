@@ -115,9 +115,9 @@ while( my ($dbname,$coll) = each %collected ) {
 	    print $R "rownames(chromp) <- chromp[,2];\n";
 	    print $R "chromp <- chromp[,3:",scalar @kinds+2,"];\n";
 	    
-	    print $R "barplot(t(chrom),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\"$chrom $dbname - Size and feature\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chrom\$V1,legend=T,col=rainbow(",scalar @kinds+1,",start=0, end=.91),beside=F)\n";
+	    print $R "barplot(t(chrom),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\"$chrom $dbname - Size and feature\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chrom\$V1,legend=T,col=rainbow(",scalar @kinds+1,",start=0.1, end=.91),beside=F)\n";
 		
-	    print $R "barplot(t(chromp),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\" $chrom $dbname - Size and feature (percent)\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chromp\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0, end=.91),beside=F)\n";
+	    print $R "barplot(t(chromp),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\" $chrom $dbname - Size and feature (percent)\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chromp\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0.1, end=.91),beside=F)\n";
 	    for my $size ( sort { $a <=> $b } keys %{$by_chrom{$dbname}->{$chrom}} ) {
 #		print $rpt join("\t", $size, map { $by_chrom{$dbname}->{$chrom}->{$size}->{$_} || 0 } @kinds ), "\n";
 		print $rpt join("\t", $chrom, $size, map { $by_chrom{$dbname}->{$chrom}->{$size}->{$_} || 0 } @kinds ), "\n";
@@ -137,10 +137,10 @@ while( my ($dbname,$coll) = each %collected ) {
 	open(my $rpt => ">$odir/$dbname.$type.5_summary_sizes") || die $!;
 	open(my $rptpct => ">$odir/$dbname.$type.5_summary_sizes.percent") || die $!;
 	print $R "size5 <- read.table(\"$dbname.$type.5_summary_sizes\",header=T,sep=\"\\t\",row.names=1)\n";
-	print $R "barplot(t(size5),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname $type Reads mapped by size - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5\$V1,legend=T,col=rainbow(5,start=0, end=.91),beside=F)\n";
+	print $R "barplot(t(size5),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname $type Reads mapped by size - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5\$V1,legend=T,col=rainbow(5,start=0.1, end=.91),beside=F)\n";
 
 	    print $R "size5p <- read.table(\"$dbname.$type.5_summary_sizes.percent\",header=T,sep=\"\\t\",row.names=1)\n";
-	print $R "barplot(t(size5p),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname $type Reads mapped by size (percent) - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5p\$V1,legend=T,col=rainbow(5,start=0, end=.91),beside=F)\n";
+	print $R "barplot(t(size5p),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname $type Reads mapped by size (percent) - 5' base\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=size5p\$V1,legend=T,col=rainbow(5,start=0.1, end=.91),beside=F)\n";
 
 	    my @lengths = sort { $a <=> $b } keys %counts;
 	print $rpt join("\t", qw(LENGTH),  @bases),"\n";
@@ -191,7 +191,7 @@ while( my ($dbname,$coll) = each %collected ) {
     print $R "sizef <- read.table(\"$dbname.feature_sizes.dat\",header=T,sep=\"\\t\",row.names=1)\n";
     print $R "sizefp <- read.table(\"$dbname.feature_sizes_percent.dat\",header=T,sep=\"\\t\",row.names=1)\n";
 
-    print $R "barplot(t(sizef),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname Reads mapped by size and feature type\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=sizef\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0, end=.91),beside=F)\n";
-    print $R "barplot(t(sizefp),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname Reads mapped by size (percent) and feature type\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=sizefp\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0, end=.91),beside=F)\n";
+    print $R "barplot(t(sizef),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname Reads mapped by size and feature type\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=sizef\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0.1, end=.91),beside=F)\n";
+    print $R "barplot(t(sizefp),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"$dbname Reads mapped by size (percent) and feature type\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=sizefp\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0.1, end=.91),beside=F)\n";
     
 }
