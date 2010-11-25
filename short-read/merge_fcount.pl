@@ -1,5 +1,9 @@
 #!/usr/bin/perl -w
 use strict;
+
+# This script is run on files produced by 
+# SAM_summarize_fwindow.pl
+
 my $min_total = 100;
 my %combo;
 for my $file ( @ARGV ) {
