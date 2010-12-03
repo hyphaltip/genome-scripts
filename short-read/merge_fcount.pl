@@ -4,7 +4,7 @@ use strict;
 # This script is run on files produced by 
 # SAM_summarize_fwindow.pl
 
-my $min_total = 100;
+my $top_total = 250;
 my %combo;
 for my $file ( @ARGV ) {
     next unless ( $file =~ /(\S+)\.counts\.dat$/);
@@ -24,8 +24,8 @@ for my $file ( @ARGV ) {
 }
 open(my $R => ">plot_fcount.R") || die $!;
 print $R "pdf(\"plot_fcount.pdf\");\n";
+my %feat_read_count;
 for my $feat ( sort keys %combo ) {
-    open(my $fh => ">$feat.tab") || die $!;
     my %lens;
     my $total = 0;
     for my $stem ( sort keys %{$combo{$feat}} ) {
@@ -34,7 +34,20 @@ for my $feat ( sort keys %combo ) {
 	    $total += $combo{$feat}->{$stem}->{$l};
 	}
     }
-    next if $total < $min_total;
+    $feat_read_count{$feat} = $total
+}
+my $processed = 0 ;
+for my $feat ( sort { $feat_read_count{$b} <=> $feat_read_count{$a} } keys %feat_read_count) {
+    last if $processed++ >= $top_total;
+    my %lens;
+    my $total = 0;
+    for my $stem ( sort keys %{$combo{$feat}} ) {
+        for my $l ( keys %{$combo{$feat}->{$stem}} ) {
+            $lens{$l}++;
+            $total += $combo{$feat}->{$stem}->{$l};
+        }
+    }
+    open(my $fh => ">$feat.tab") || die $!;
     my @lenslst = sort { $a <=> $b} keys %lens;
     print $fh join("\t", 'LIBRARY',@lenslst), "\n";
     for my $stem ( sort keys %{$combo{$feat}} ) {
