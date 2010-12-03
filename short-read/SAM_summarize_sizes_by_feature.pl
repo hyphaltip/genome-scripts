@@ -23,7 +23,6 @@ GetOptions(
 	   );
 die("must have feature file") unless defined $features && -f $features;
 die("must have genome fasta") unless defined $genome && -f $genome;
-
 my @bams = map { [$_ =~ /^([^\.]+)\./, Bio::DB::Sam->new(-bam => $_, -fasta => $genome)] } @ARGV;
 
 open(my $fh => $features ) || die "$features: $!";
@@ -47,6 +46,8 @@ while(<$fh>) {
     } elsif( $grouping =~ /type/i ) {
 	# use the feature type as the grouping -- 3rd column
 	$grp = $row[2];
+    } else {
+	die("no defined field for group\n");
     }
     $grp =~ s/\//_/g;
     $g{$grp}++;
@@ -67,7 +68,7 @@ while(<$fh>) {
 	    next unless $expected_bases{$five_base};
 	    my $len = $aln->length;
 	    next if $len < $minsize || $len > $maxsize;
-
+		
 	    $collected{$name}->{$grp}->{$len}->{all}++;	    
 	    $by_chrom{$name}->{$row[0]}->{$len}->{$grp}++;
 
