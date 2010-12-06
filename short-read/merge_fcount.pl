@@ -4,7 +4,7 @@ use strict;
 # This script is run on files produced by 
 # SAM_summarize_fwindow.pl
 
-my $top_total = 250;
+my $top_total = 1000;
 my %combo;
 for my $file ( @ARGV ) {
     next unless ( $file =~ /(\S+)\.counts\.dat$/);
