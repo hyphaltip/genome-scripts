@@ -54,7 +54,7 @@ while( my $gene = $iter->next_seq ) {
     for my $mRNA ( @mRNA ) { # 1st mRNA for now
 	my $last_exon;
 	my $i = 1;
-	my $mRNA_name = $mRNA->load_id;
+	my $mRNA_name = $mRNA->name || 'mRNA-'.$mRNA->load_id;
 	for my $exon ( sort { $a->start * $a->strand <=> 
 				  $b->start * $b->strand } 
 		       $mRNA->get_SeqFeatures('exon') ) {
@@ -70,9 +70,9 @@ while( my $gene = $iter->next_seq ) {
 				$gene->source,
 				'intron',
 				$start,$end, '.',
-				$exon->strand,
+				$exon->strand > 1 ? '+' : '-',
 				'.',
-				sprintf('ID=mRNA-%s.i%d;Gene=%s',
+				sprintf('ID=%s.i%d;Gene=%s',
 					$mRNA_name,
 					$i++,
 					$gene_name)),"\n";	    
