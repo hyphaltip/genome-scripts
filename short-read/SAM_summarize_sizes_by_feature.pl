@@ -13,6 +13,7 @@ my $minsize = 18;
 my $maxsize = 30;
 my $odir = 'SAM_sizes_by_feature';
 my ($genome,$features,$debug);
+my $compute_nofeature = 0;
 GetOptions(
 	   'v|verbose|debug!' => \$debug,
 	   'min:i'            => \$minsize,
@@ -20,6 +21,7 @@ GetOptions(
 	   'grouping:s'       => \$grouping,
 	   'f|gff|feature:s'  => \$features,
 	   'g|genome|dna|fa:s'=> \$genome,
+	   'nf|nofeature!'    => \$compute_nofeature,
 	   'd|dir:s'          => \$odir
 	   );
 die("must have feature file") unless defined $features && -f $features;
@@ -63,8 +65,9 @@ while(<$fh>) {
     for my $bamd ( @bams ) {
 	my ($name,$db) = @$bamd;
 	next if $debug && $db->length($row[0]) > 500000;
-	my $segment = $db->segment($row[0], $row[3] => $row[4]);
-	push @{$genome_features{$row[0]}}, [$row[3] => $row[4]];
+	my ($start,$end) = sort { $a <=> $b} ($row[3],$row[4]);
+	my $segment = $db->segment($row[0], $start => $end);
+	push @{$genome_features{$row[0]}}, [$start => $end];
 	
 	my $iterator = $segment->features(-iterator => 1);
 
@@ -92,45 +95,46 @@ while(<$fh>) {
     }
 }
 
-my $hole_set = &compute_holes(\%genome_features, \%chrom_lens);
+if( $compute_nofeature ) {
+    my $hole_set = &compute_holes(\%genome_features, \%chrom_lens);
 
-while( my ($hole_chrom,$holes) = each %$hole_set ) {
-    for my $hole ( @{$holes} ) {
-	for my $bamd ( @bams ) {
-	    my ($name,$db) = @$bamd;
-	    next if $debug && $db->length($hole_chrom) > 500000;
-	    my $segment = $db->segment($hole_chrom, $hole->[0] => $hole->[1]);
+    while( my ($hole_chrom,$holes) = each %$hole_set ) {
+	for my $hole ( @{$holes} ) {
+	    for my $bamd ( @bams ) {
+		my ($name,$db) = @$bamd;
+		next if $debug && $db->length($hole_chrom) > 500000;
+		my $segment = $db->segment($hole_chrom, $hole->[0] => $hole->[1]);
 
-	    my $iterator = $segment->features(-iterator => 1);	    
-	    while (my $aln = $iterator->next_seq) {			
-		my $len = $aln->length;
-		next if $len < $minsize || $len > $maxsize;
-		
-		my $dna = $aln->query->dna ;
-		my %f;
-		for ( split('',$dna) ) { $f{$_}++ }
-		next if keys %f <= 2; # drop those AAA or TTT runs
-			      
+		my $iterator = $segment->features(-iterator => 1);	    
+		while (my $aln = $iterator->next_seq) {			
+		    my $len = $aln->length;
+		    next if $len < $minsize || $len > $maxsize;
 
-		my $five_base = uc substr($dna,0,1);
-		my $three_base = uc substr($dna,-1,1);
+		    my $dna = $aln->query->dna ;
+		    my %f;
+		    for ( split('',$dna) ) { $f{$_}++ }
+		    next if keys %f <= 2; # drop those AAA or TTT runs
 
-		# stay super strict here
-		next unless $expected_bases{$three_base} && $expected_bases{$five_base};
 
-		$collected{$name}->{'nofeature'}->{$len}->{5}->{$five_base}++;	    	    
-		
-						
-		$collected{$name}->{'nofeature'}->{$len}->{3}->{$three_base}++;	    
+		    my $five_base = uc substr($dna,0,1);
+		    my $three_base = uc substr($dna,-1,1);
 
-		$collected{$name}->{'nofeature'}->{$len}->{all}++;		
-		$by_chrom{$name}->{$hole_chrom}->{$len}->{'nofeature'}++;
+		    # stay super strict here
+		    next unless $expected_bases{$three_base} && $expected_bases{$five_base};
 
+		    $collected{$name}->{'nofeature'}->{$len}->{5}->{$five_base}++;	    	    
+
+
+		    $collected{$name}->{'nofeature'}->{$len}->{3}->{$three_base}++;	    
+
+		    $collected{$name}->{'nofeature'}->{$len}->{all}++;		
+		    $by_chrom{$name}->{$hole_chrom}->{$len}->{'nofeature'}++;
+
+		}
 	    }
 	}
     }
 }
-
 for my $r ( sort { $g{$b} <=> $g{$a} } keys %g ) {
     print $groupsfh join("\t",$r, $g{$r}),"\n";
 }
