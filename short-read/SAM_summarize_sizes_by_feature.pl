@@ -159,9 +159,9 @@ while( my ($dbname,$coll) = each %collected ) {
 	    print $R "chromp <- prop.table(as.matrix(chrom),margin=1)*100;\n";
 	    
 	    
-	    print $R "barplot(t(chrom),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\"$chrom $dbname - Size and feature\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chrom\$V1,legend=T,col=rainbow(",scalar @kinds+1,",start=0.1, end=.91),beside=F)\n";
+	    print $R "barplot(t(chrom),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\"$chrom $dbname - Size and feature\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=allsizechrom\$V1,legend=T,col=rainbow(",scalar @kinds+1,",start=0.1, end=.91),beside=F)\n";
 		
-	    print $R "barplot(t(chromp),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\" $chrom $dbname - Size and feature (percent)\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=chrom\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0.1, end=.91),beside=F)\n";
+	    print $R "barplot(t(chromp),xlab=\"Read Length\", ylab=\"Total \# Reads\", main=\" $chrom $dbname - Size and feature (percent)\",space=0.1,cex.axis=0.8,las=1,cex=0.8,names=allsizechrom\$V1,legend=T,col=rainbow(",scalar @kinds,",start=0.1, end=.91),beside=F)\n";
 	    for my $size ( sort { $a <=> $b } keys %{$by_chrom{$dbname}->{$chrom}} ) {
 		print $rpt join("\t", $chrom, $size, map { $by_chrom{$dbname}->{$chrom}->{$size}->{$_} || 0 } @kinds ), "\n";
 	    }
