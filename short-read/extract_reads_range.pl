@@ -27,8 +27,8 @@ while(<$fh>) {
     my $iterator = $segment->features(-iterator => 1);
     open(my $ofh => ">$odir/$base.$name.reads1") || die $!;
     while( my $aln = $iterator->next_seq ) {
-	my $name = $aln->query->seq_id;
-	my $hit = `grep $name $base.2.sam | tee -a $odir/$base.2.hits`;
+	my $rname = $aln->query->seq_id;
+	my $hit = `grep $rname $base.2.sam | tee -a $odir/$base.2.hits`;
 	my @other_nfo;
 	if( $hit ) {
 	    chomp($hit);
@@ -61,7 +61,8 @@ while(<$fh>) {
     $iterator = $segment->features(-iterator => 1);
     open($ofh => ">$odir/$base.$name.reads2") || die $!;
     while( my $aln = $iterator->next_seq ) {
-	my $hit = `grep $name $base.1.sam | tee -a $odir/$base.1.hits`;
+	my $rname = $aln->query->seq_id;
+	my $hit = `grep $rname $base.1.sam | tee -a $odir/$base.1.hits`;
 	my @other_nfo;
 	if( $hit ) {
 	    chomp($hit);
