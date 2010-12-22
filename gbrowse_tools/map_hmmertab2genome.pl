@@ -91,19 +91,28 @@ while(<$fh>) {
     $seen{"$gene_name.$domain"}++;
     
     my ($gene) = $dbh->get_features_by_name($gene_name);
+    
     unless ( defined $gene ) {
 	($gene) = $dbh->features(-type => ['gene'],
-				 -attributes => {locus_tag => $gene_name});
+				 -attributes => {locus_tag => $gene_name});	
 	unless( defined $gene ) {
-	    warn("cannot find $gene_name\n");
-	    next;
+	    ($gene) = $dbh->features(-type => ['mRNA'],
+				     -attributes => {name => $gene_name});	
+	    unless( defined $gene ) {
+		warn("cannot find $gene_name\n");
+		next;
+	    }
 	}
     }
-
     my @exons;
     warn("gene name is $gene_name for $gene\n") if $debug;
-    
-    for my $mRNA ( $gene->get_SeqFeatures ) {
+    my @mRNAs;
+    if( $gene->primary_tag eq 'gene' ) {
+	@mRNAs = $gene->get_SeqFeatures;
+    } elsif( $gene->primary_tag eq 'mRNA' ) {
+	@mRNAs = $gene;
+    }
+    for my $mRNA ( @mRNAs ) {
 	for my $cds ( $mRNA->CDS ) {
 	    warn($cds->to_FTstring, "\n") if $debug;
 	    push @exons, $cds;
@@ -121,22 +130,25 @@ while(<$fh>) {
 				   (-start => $qstart,
 				    -end   => $qend,
 				    ));
-
-	for my $exon ( $newloc->each_Location ) {
-	    print join("\t", 
-		       $gene->seq_id, $src, qw(translated_nucleotide_match),
-		       $exon->start,
-		       $exon->end,
-		       $evalue,
-			$exon->strand > 0 ? '+' : '-',
-		       '.',
-		       sprintf('ID=%s__%s.%d;Name=%s;overlapping_gene=%s',
-			       $domain, $gene_name,
-			       $seen{"$gene_name.$domain"}, 
-			       $domain,
-			       $gene_name)),"\n";
+	if( $newloc ) {
+	    for my $exon ( $newloc->each_Location ) {
+		print join("\t", 
+			   $gene->seq_id, $src, qw(translated_nucleotide_match),
+			   $exon->start,
+			   $exon->end,
+			   $evalue,
+			   $exon->strand > 0 ? '+' : '-',
+			   '.',
+			   sprintf('ID=%s__%s.%d;Name=%s;overlapping_gene=%s',
+				   $domain, $gene_name,
+				   $seen{"$gene_name.$domain"}, 
+				   $domain,
+				   $gene_name)),"\n";
+	    }
+	} else {
+	    warn("cannot find a new loc mapping $qstart..$qend in $gene_name\n");
 	}
-    }
+    } 
 }
 
 sub read_cnf {
