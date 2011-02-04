@@ -43,6 +43,8 @@ for my $file ( readdir(PFAM) ) {
 		$n, $totalhits, $dom_cvalue, $dom_ievalue,$dom_score,
 		$dom_bias) = split(/\s+/,$_);
 	    $pfam{$qname}->{$domain}++ if $dom_cvalue < $evalue_cutoff;
+	    $qname =~ s/:/\|/;
+	    $pfam{$qname}->{$domain}++ if $dom_cvalue < $evalue_cutoff;
 	}
     } elsif( $hmmerversion ==2 ) { # parse HMMER2 (hmmer_to_table output
        while(<$fh>) {

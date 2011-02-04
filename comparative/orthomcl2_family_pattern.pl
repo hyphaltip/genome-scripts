@@ -10,6 +10,7 @@ my %groups;
 if( $groups ) {
     open(my $fh => $groups) || die "cannot open $groups: $!";
     while(<$fh>) {
+	next if /^#/;
 	my ($grpname,@members) = split;
 	for my $m ( @members ) { $groups{$m} = $grpname }
     }
