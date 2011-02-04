@@ -86,7 +86,7 @@ for my $genome ( readdir(DIR) ) {
 	my @features = $db->get_features_by_type($t);
 	warn("there are ", scalar @features, " gene features\n") if $verbose;
 	for my $f ( @features ) {
-	    my ($gname) = $f->load_id;
+	    my ($gname) = $f->name || $f->load_id;
 	    $gout->write_seq(Bio::PrimarySeq->new(-id => "$gname",
 						  -seq=> $f->dna,
 						  -desc => 
@@ -98,7 +98,7 @@ for my $genome ( readdir(DIR) ) {
 	    ### $f->load_id, "\n") if $verbose;
 	    for my $mRNA ( @mrna ) {  
 		my $cds;
-		my ($id) = $mRNA->load_id;
+		my ($id) = $mRNA->name || $mRNA->load_id;
 
 
 		my $lastexon;
