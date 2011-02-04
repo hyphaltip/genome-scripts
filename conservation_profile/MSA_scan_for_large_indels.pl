@@ -2,13 +2,15 @@
 use strict;
 use Bio::AlignIO;
 use Getopt::Long;
-my $Min_gapsize = 50;
+
+my $Min_gapsize = 40;
 my $Max_gapsize = 5000;
 my $alndir = 'alignments';
 my $genome;
 my $strand = '+';
 my $agp_ref;
 my $exe = "sliceAlignment %s %s %s %d %d %s |";
+my $sdbExtract = "sdbExport %s.sdb %s %d %d %s |";
 my $debug = 0;
 GetOptions('r|ref=s' => \$genome,
 	   'agp:s'   => \$agp_ref,
@@ -26,19 +28,23 @@ while(<$agp>) {
     $refchroms{$chrom} = [$start => $end];
 }
 
+my $gapcounter = 0;
+open( my $ofh => ">$genome.gaps.dat") || die $!;
+open(my $gapseqs => ">$genome.gap_seqs.fa") || die $!;
+
+print $ofh join("\t", qw(GAPID CHROM ALNPOS SEQPOS LENGTH)),"\n";
 for my $chrom ( sort keys %refchroms ) { 
     my ($start,$end)= @{$refchroms{$chrom}};
     warn("$chrom $start .. $end\n");
- # run sliceAlignment to get the projected MSA
+    # run sliceAlignment to get the projected MSA
     open( my $fh => sprintf($exe, $alndir,$genome,$chrom,
 			    $start,$end,$strand)) || 
 				die "$!";    
 
     my $alnio = Bio::AlignIO->new(-fh => $fh,
 				  -format   => 'fasta');
-   # parse alignment
+    # parse alignment
     while( my $aln = $alnio->next_aln ) {
-	warn("got aln, len ", $aln->length,"\n");
 	my %snv;
 	my @s = $aln->each_seq;
 	my @d =  map { $_->seq } @s;
@@ -56,7 +62,7 @@ for my $chrom ( sort keys %refchroms ) {
 		my $ch = substr($s,0,1,'');
 		$alleles{$ch}++;
 	    }
-	    next if keys %alleles == 1; # ignore where monomorphic
+	    next if keys %alleles == 1;	# ignore where monomorphic
 	    if( exists $alleles{'-'} ) {
 		$snv{$i} = 'GAP'; # code GAPs
 	    } else { 
@@ -66,28 +72,48 @@ for my $chrom ( sort keys %refchroms ) {
 	my @gaps = sort { $a <=> $b } grep { $snv{$_} eq 'GAP' } keys %snv;
 	my @snps = sort { $a <=> $b } grep { $snv{$_} ne 'GAP' } keys %snv;
 	my @collapse_gaps = &collapse_nums(@gaps); # run the collapse algorithm to get runs of GAPs
-	
-	print "there are ", scalar @snps, " SNPs and ", scalar @gaps, " total gaps and ", scalar @collapse_gaps, " gap openings\n";	
 
+	my $singleton;
 	for my $indel ( @collapse_gaps ) {
 	    # capture the indels, check if they are right size, and project the location from 
 	    if( $indel =~ /(\d+)-(\d+)/ ) { # only those non singleton indels
 		my ($from,$to) = ($1,$2);
 		my ($size_gap) = abs($to - $from);
 		if( $size_gap > $Min_gapsize && $size_gap < $Max_gapsize ) {
-		   my ($locfrom) = $s[0]->location_from_column($from); # project from aln space to seq coords
-		   my ($locto)  =  $s[0]->location_from_column($to); 
-		# Report the info about the gap
-		    printf "%s aln=%s %d..%d %d\n",
+		    my ($locfrom) = $s[0]->location_from_column($from);	# project from aln space to seq coords
+		    my ($locto)  =  $s[0]->location_from_column($to); 
+		    # Report the info about the gap
+		    my $seqcoord_start = $desc[0]->[1] + $locfrom->start;
+		    my $seqcoord_end   = $desc[0]->[1] + $locto->start;
+
+		    printf $ofh "%d\t%s\t%s\t%d..%d\t%d\n",
+		    $gapcounter,
 		    $desc[0]->[0],
 		    $indel,		    
 		    $desc[0]->[1] + $locfrom->start,
 		    $desc[0]->[1] + $locto->start,
 		    $size_gap,
+		    open( my $extract => sprintf($sdbExtract,$genome,$chrom,
+						 $seqcoord_start,
+						 $seqcoord_end,
+						 $strand)) || die "sdbextract: $!";
+		    while(<$extract>) {
+			if(/^>(\S+)/) {
+			    printf $gapseqs ">%d %s:%d..%d\n", $gapcounter,$chrom,
+			    $seqcoord_start, $seqcoord_end;
+			} else {
+			    print $gapseqs;
+			}			    
+		    }
 		}
-	    }
-	    
+	    } else { 
+		$singleton++;
+	    }	    
 	}
+	print "$chrom there are ", scalar @snps, " SNPs and ", 
+	scalar @gaps, " total gaps and ", scalar @collapse_gaps, " gap openings and ",
+	$singleton, " singleton indels\n";	
+
 	last if $debug;
     }
     last if $debug;
