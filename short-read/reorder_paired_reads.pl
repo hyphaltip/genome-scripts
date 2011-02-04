@@ -4,9 +4,8 @@ use File::Spec;
 use Getopt::Long;
 use File::Temp qw(tempdir);
 my $tempbase;
-my ($min_length, $min_qual,$min_percent) = (20,20,50);
-my $barcodes_file = 'mybarcodes.txt';
-my $offset = 33; # illumina
+my ($min_length, $min_qual,$min_percent) = (28,30,70);
+my $offset = 33; # Sanger offset is 33, Illumina is 64
 my $outdir = ".";
 my $debug = 0;
 GetOptions(
@@ -14,9 +13,9 @@ GetOptions(
 	   'l|length:i'  => \$min_length,
 	   'q|qual:i'    => \$min_qual,
 	   'p|percent:i' => \$min_percent,
-	   'b|barcodes:s'=> \$barcodes_file,
 	   't|tempbase:s'=> \$tempbase,
 	   'o|outdir:s'  => \$outdir,
+	   'f|offset:i'  => \$offset,
 	   );
 
 # don't use this on files with more than 1M reads it will be really slow
@@ -31,23 +30,25 @@ for my $file (@ARGV) {
     my @name = split(/\./,$fname);
     my ($ext) = pop @name;
     my $f = join(".",@name);
-    if( $f =~ /(\S+_s_\d+)\_(\d+)\.p(\d+)$/ ) {
-	$sets{"$1.$3"}->{$2} = $file;	
+    if( $f =~ /(\S+_s_\d+)\_(\d+)\.p(\d+)$/ ||
+	$f =~ /(\S+)\_(\d+)\.p(\d+)$/ ) {
+	$sets{"$1.$3"}->{$2} = $file;
     }    
 }
 my %conditions;
 for my $set ( keys %sets ) {
+    my ($base) = split(/\./,$set);
     my $temp = tempdir(DIR => $tempbase, CLEANUP => 1);
     warn "temp is $temp\n" if $debug;
-    for my $t ( keys %{$sets{$set}} ) {
+    for my $t ( keys %{$sets{$set}} ) {	
 	warn "$set $t ",$sets{$set}->{$t},"\n" if $debug;
 	my $exe = sprintf(<<EOL
-fastq_quality_filter -Q %d -q %d -p %d -i %s | fastq_quality_trimmer -Q %d -t %d -l %d | fastx_barcode_splitter.pl -Q %d --bol --bcfile %s --prefix %s 
+fastq_quality_filter -Q %d -q %d -p %d -i %s | fastq_quality_trimmer -Q %d -t %d -l %d > %s
 EOL
 ,
 			  $offset, $min_qual, $min_percent, $sets{$set}->{$t},
 			  $offset, $min_qual, $min_length, 
-			  $offset, $barcodes_file,"$temp/$set.$t\_\_");
+			  "$temp/$set.$t\_\_$base");	
 	`$exe`;
     }
     opendir(DIR,$temp);
@@ -87,7 +88,8 @@ EOL
 	    while(<$infh>) {
 		my $record = $_;
 		my $name;
-		if( s/^@(\S+)\#\d+\/([12])//) {		    
+		if( s/^@(\S+)\#\d+\/([12])// ||
+		    s/^@(\S+\.\d+)\s+\S+:\d+\/([12])// ) {
 		    $name = $1;
 		    if( $2 != $lane ) {
 			chomp($_);
@@ -96,6 +98,13 @@ EOL
 		}
 		for ( 0..2) {
 		    $record .= <$infh>;
+		}
+		if( ! defined $name ) {
+		    warn("no name for $record\n");
+		    die;
+		} elsif( ! defined $lane ) {
+		    warn("no lane for $record\n");
+		    die;
 		}
 		$alldata{$name}->{$lane} = $record;
 	    }
