@@ -9,11 +9,9 @@ my %uncompress = ('bz2' => 'bzcat',
 # assume short read fastq with 4 lines per record!
 
 my $size = 1_000_000;
-my $basename;
 my $outdir;
 GetOptions('s|size:i'  => \$size,
 	   'o|outdir:s' => \$outdir,
-	   'b|basename:s' => \$basename,
 	   );
 my @files = @ARGV;
 
