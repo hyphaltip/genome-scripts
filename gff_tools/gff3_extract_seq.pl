@@ -36,5 +36,5 @@ while(<>) {
 #				  -seq => $seq,
 #				  -desc => sprintf("%s:%d..%d",
 #						   $row[0],$start,$end)));
-    printf $out ">%s %s:%d..%d length=%d\n%s\n",$name,$row[0],$start,$end,length($seq),$seq;
+    printf $out ">%s %s:%d..%d length=%d score=%s\n%s\n",$name,$row[0],$start,$end,length($seq),$row[5],$seq;
 }
