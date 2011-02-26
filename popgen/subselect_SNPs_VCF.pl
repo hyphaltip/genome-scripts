@@ -5,7 +5,7 @@ use List::Util qw(sum shuffle);
 use Getopt::Long;
 my $target_freq_min = 0.40;
 my $target_freq_max = 0.60;
-my $flank = 50;
+my $flank = 200;
 
 my (%locs,%dat);
 my $total_SNPs;
