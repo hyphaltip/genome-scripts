@@ -48,9 +48,9 @@ while(<$fh>) {
 			$aln->end,			
 #			$aln->dna,
 			$aln->query->seq_id,
-			#$aln->query->start,
-			#$aln->query->end,
-			#$aln->query->strand,			
+			$aln->query->start,
+			$aln->query->end,
+			$aln->query->strand,			
 			$aln->query->dna,
 			$aln->cigar_str,
 			@other_nfo
