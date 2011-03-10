@@ -4,7 +4,7 @@ use Bio::AlignIO;
 use Getopt::Long;
 
 my $Min_gapsize = 40;
-my $Max_gapsize = 5000;
+my $Max_gapsize = 10000;
 my $Max_Npercent = 0.50;
 
 my $alndir = 'alignments';
