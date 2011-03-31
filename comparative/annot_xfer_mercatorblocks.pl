@@ -82,7 +82,7 @@ my (undef,$tosrc) = split(/:/,$to_feature);
 
 print $output join("\t", qw(GENE_FROM MRNA_FROM CHROM_FROM 
 			    START_FROM STOP_FROM STRAND_FROM 
-			    GENE_TO MRNA_TO START_TO STOP_TO 
+			    GENE_TO MRNA_TO CHROM_TO START_TO STOP_TO 
 			    STRAND_TO SINGLE_MATCH)), "\n";
 
 while( my $gene = $iter->next_seq ) {

@@ -17,6 +17,9 @@ GetOptions(
 	   'i|in|input:s'   => \$idir,
 	   'o|out|output:s' => \$odir,
 	   'j|job|jobdir:s' => \$jobdir,
+	   'w|window:s'     => \$window,
+	   'overlap:i'      => \$overlap,
+	   't|target:s'     => \$target,
 	   );
 
 
@@ -67,7 +70,7 @@ for my $interval ( @intervals ) {
 					       -alphabet=>'dna',
 					       -file   => ">$odir/$interval_name.aln");
 		$alnout->write_aln($aln);
-		print $jobfh "RNAz $odir/$interval_name.aln > $odir/$interval_name.RNAz\n";
+		print $jobfh "RNAz -b -s -d -w 1-150 $odir/$interval_name.aln > $odir/$interval_name.RNAz\n";
 	    }
 	}
     }
