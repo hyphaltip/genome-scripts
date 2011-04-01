@@ -12,8 +12,11 @@ use Bio::DB::Fasta;
 use Getopt::Long;
 
 my $debug = 0;
+my $show_exontype = 0;
 GetOptions (
-	    'v|version!' => \$debug);
+    'v|version!' => \$debug,
+    'show|exon!' => \$show_exontype,
+    );
 
 my $db;
 if( $debug ) {
@@ -82,8 +85,9 @@ while(<>) {
 	push @order, $gid;
     }
     push @{$gene{$gid}}, [ @line, 
-			   sprintf('transcript_id "%s"; gene_id "%s";',
-				   $tid, $gid)];
+			   sprintf('gene_id "%s"; transcript_id "%s";',
+#			       'transcript_id "%s"; gene_id "%s";',
+				   $gid, $tid)];
 }
 for my $gene ( @order ) {
     my @ordered_cds = ( map { $_->[1] }
@@ -104,7 +108,7 @@ for my $gene ( @order ) {
         } else {
         $type = 'internal';
         }
-        $cds->[-1] = "exontype \"$type\"; ".$cds->[-1];
+        $cds->[-1] = "exontype \"$type\"; ".$cds->[-1] if $show_exontype;
 	$cds->[7]  = ( $running % 3);
 	$running += abs($cds->[4] - $cds->[3]) + 1;
 	$i++;
