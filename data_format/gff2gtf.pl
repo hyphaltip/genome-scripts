@@ -32,25 +32,27 @@ while(<>) {
     if( uc($line[2]) eq 'MRNA' ||
 	uc($line[2]) eq 'GENE') {
 	my ($id,$name);
-	if( $last =~ /ID=([^;]);?/ ) {
+	if( $last =~ /ID=([^;]+);?/ ) {
 	    $id = $1;
 	}
 	if( $last =~ /Name=([^;]+);?/ ) {
 	    $name = $1;
 	}
+#	warn("id is $id\n");
 	if( defined $id && defined $name ) {
 	    $id2name{uc $line[2]}->{$id} = $name; # map the id (typically just a numeric) to the name (string)
 	    if( uc($line[2]) eq 'MRNA' && 
-		$last =~ /Parent=([^;]+);?/ ) {
+		$last =~ /Parent=([^;]+)/ ) {
 		# map the mRNA ID to the Gene (numeric) ID
 		$id2name{MRNA_PARENT}->{$id} = $1;
 	    }
 	}
+#	warn($_);
     }
-    next if uc($line[2]) ne 'CDS';
+    next unless uc $line[2] eq 'CDS';
     if( $last =~ /(Name|Transcript|GenePrediction)\s+(\S+)/ ) {
 	($group) = $2;
-    } elsif( $last =~ /Parent=([^;]+);?/) {
+    } elsif( $last =~ /Parent=([^;]+);?/) { # gff3
 	$group = $1;
 	$group =~ s/Model\.//;
     } 
@@ -62,12 +64,19 @@ while(<>) {
     my $gid = $group;    
     if( exists $id2name{'MRNA'}->{$group} ) {
 	$tid = $id2name{'MRNA'}->{$group};
+    } else {
+	warn "cannot find MRNA group $group\n";
+	die;
     }
+	
     if( exists $id2name{'MRNA_PARENT'}->{$group} ) {
 	my $geneid = $id2name{'MRNA_PARENT'}->{$group};
 	if( exists $id2name{'GENE'}->{$geneid} ) {
 	    $gid = $id2name{'GENE'}->{$geneid};
 	}
+    } else {
+	warn("cannot find gene group for $group\n");
+	die;
     }
     if( ! $seen{$gid}++ ) {
 	push @order, $gid;
