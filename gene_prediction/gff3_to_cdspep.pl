@@ -1,4 +1,41 @@
 #!/usr/bin/perl -w
+
+=head1 NAME
+
+gff3_to_cdspep
+
+=head1 DESCRIPTION
+
+A script to dump a series of genome databases into CDS, PEP, and Intron files
+
+
+ mkdir genomes
+ cd genomes
+ mkdir NEW_GENOME
+ cd NEW_GENOME
+ cp GENOME_FROM_SOMELOCATION genome.fa # copy the genome fasta to this directory
+ # this example uses making AUGUSTUS gene predictions
+ augustus --gff3=on --uniqueGeneId=true --species=MYSPECIES ...  genome.fa > genome.augustus # generate the augustus gene predictions
+ perl ~/src/genome-scripts/data_format/augustus_to_gff3.pl  genome.augustus > genome.augustus.gff3 # augustus gene predictions converted to simple GFF3
+ perl ~/src/genome-scripts/gbrowse_tools/fasta_to_gbrowse_scaffold.pl genome.fa > genome.scaffold.gff3 # make the scaffolds file for the chromosome info
+ cd ../..
+ perl ~/src/genome-scripts/gene_prediction/gff3_to_cdspep.pl genomes 
+ 
+This will result in a 'seqs' folder being made that will have a 'cds','pep','intron', and 'gene' folder which contain the extracted sequences for all the gene features in the GFF3 files per-genome.  A default prefix is added to each sequence which assumes folders are named
+ ustilago_mayids
+OR
+ crytococcus_neoformans_JEC21
+and will use 1st letter of genus (determined by splitting on the _) and first 3 letters of species, and then anything left in the strain/designation cin the 3rd part specified by the _.
+
+'gene' is start -> stop codon inclusive (introns not spliced out)
+'CDS' is start -> stop, introns spliced out
+'pep' is translation of 'CDS' with stop codon removed
+'intron' is the spliced introns, numbered 5' -> 3' using the gene name and .iX (where X is the Xth intron in the gene) for the ID
+
+[TODO: cleanup docs for more info]
+
+=cut
+
 use strict;
 
 use File::Spec;
