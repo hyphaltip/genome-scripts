@@ -19,7 +19,7 @@ while(<>) {
 	for( my $i = 0; $i < $len; $i++ ) {
 	    my $char = substr($qual,$i,1);
 	    my $old_val = ord($char);
-	    my $new_val = $old_val - 64 + 31;	    
+	    my $new_val = $old_val - 64 + 33;	    
 #	    warn("$char => $old_val -> $new_val\n");
 	    substr($qual,$i,1,chr($new_val));
 	}

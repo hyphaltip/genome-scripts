@@ -70,7 +70,7 @@ my @src;
 if( $dbname  && $transcript_source ) {
     $dbh = Bio::DB::SeqFeature::Store->new(-adaptor=> $adaptor,
 					  -dsn    => "$dsn:$dbname",
-					  );    
+					  );
     @src= ("mRNA:$transcript_source");
 } elsif( $gff_dir ) {
     $dbh = Bio::DB::SeqFeature::Store->new(-adaptor=> $flatfile_adaptor,
@@ -80,215 +80,193 @@ if( $dbname  && $transcript_source ) {
 } else {
     die("Must provide either dbname and gene source field for Bio::DB::SeqFeature database OR gff file (and genome fasta)\n");
 }
+
 open(my $ofh => ">$output") || die "cannot open $output for writing\n";
 warn("source is @src\n") if $debug;
 my $row = 0;
+my (%sample, %col, %cnt);
 while(<$fh>) {
-    next if /^\#/;
-    chomp;
-    my ($chrom,$pos,$id,$ref_base,$alt, $qual,$filter, $info, $format, @genotypes) = split;
-    $row++;
-    my @read_alleles;
-    
-    my %group = ('ID' => sprintf("%s_%d",$chrom,$pos),
-		 'Reference_seq' => $ref_base,
-		 'Variant_seq' => $alt,
-		 'Quality' => $qual);
-    
-    my $segment = $dbh->segment($chrom, $pos-1 => $pos+1);
-    my @features = $segment->features(-type => [@src]);
-    
-    my $var_length = 1; # how many bases
-    my $var_type;
-    my $type;
-    if( $ref_base eq '*' ) {	# indel
-	#$group{'Variant_reads'} = $num_reads_sup_second;
-	
-	for my $r ( split(/\//,$read_allele )) {
-	    next if $r eq '*';
-	    
-	    my $indeldir = substr($r,0,1,''); # get the - or + and strip it out
-	    $group{'Variant_seq'} = $r;
-	    if( $indeldir eq '-' ) {
-		if( defined $var_type && $var_type ne 'deletion' ) {
-		    $var_type = 'complex_substitution';
-		    last;
-		}
-		$var_type = 'deletion';
-	    } elsif( $indeldir eq '+' ) {
-		if( defined $var_type && $var_type ne 'insertion' ) {
-		    $var_type = 'complex_substitution';
-		    last;
-		}
-		$var_type = 'insertion';
-	    } else {
-		warn("unknown indeldir for '$r' - $indeldir ($read_allele)\n");
-	    }
-	    $var_length = max($var_length,length($r)); # longest is the event len
+    next if /^\##/;
+    if (/^#/) {
+      my @t = split("\t");
+      for my $i (9 .. $#t) {
+	my $k = $sample{$t[$i]};
+	if ($k) {
+	  push(@{$col{$k}}, $i);
+	  push(@{$cnt{$k}}, 0, 0);
 	}
-	$type = 'nucleotide_'.$var_type;
+      }
     } else {
-	my ( $num_read_bases, $read_qual, $aln_qual) = @row;
-	$type = 'SNV';
+      chomp;
+      my ($chrom,$pos,$id,$ref_base,$alt, $qual,$filter, $info, $format, @genotypes) = split(/\t/,$_);
 
-	my $ambiseq = Bio::Seq->new(-seq => $read_allele, -alphabet => 'dna');	
-	my $stream  = Bio::Tools::IUPAC->new(-seq => $ambiseq);
-	
-	while (my $uniqueseq = $stream->next_seq()) {
-	    my $char = $uniqueseq->seq;	    
-	    push @read_alleles, $char unless $char eq $ref_base;
-	}
-	$group{'Variant_seq'} = join(',', @read_alleles);
-	$var_type = 'point_mutation';
-    }
-    if( @features ) {
-	
+      next unless ( $alt ne '.' && $alt !~ /,/ );
+      $row++;
+      my @read_alleles;
+      my %group = ('ID' => sprintf("%s_%d",$chrom,$pos),
+		   'Reference_seq' => $ref_base,
+		   'Variant_seq' => $alt,
+		   'Quality' => $qual);
+      my $segment = $dbh->segment($chrom, $pos-1 => $pos+1);
+      my @features = $segment->features(-type => [@src]);
+      my $var_length = 1;	# how many bases
+      my $var_type;
+      my $type;
+      #my ( $num_read_bases, $read_qual, $aln_qual) = @row;
+      $type = 'SNV';
+      my $ambiseq = Bio::Seq->new(-seq => $alt, -alphabet => 'dna');	
+      my $stream  = Bio::Tools::IUPAC->new(-seq => $ambiseq);
+      while (my $uniqueseq = $stream->next_seq()) {
+	my $char = $uniqueseq->seq;	    
+	push @read_alleles, $char unless $char eq $ref_base;
+      }
+      $group{'Variant_seq'} = join(',', @read_alleles);
+      $var_type = 'point_mutation';
+      if ( @features ) {
 	# determine if this is AA changing
 	for my $mRNA ( sort {$b->length <=> $a->length} @features ) {
-	    $group{'Gene_strand'} = $mRNA->strand;
-	    my ($point) = $dbh->segment($chrom,$pos,$pos);	    
-	    # print "mRNA is ",$mRNA->location->to_FTstring, " pos is $pos\n";
+	  $group{'Gene_strand'} = $mRNA->strand;
+	  my ($point) = $dbh->segment($chrom,$pos,$pos);	    
+	  # print "mRNA is ",$mRNA->location->to_FTstring, " pos is $pos\n";
 
-	    my $name = $mRNA->name;
+	  my $name = $mRNA->name;
 	    
-	    my ($CDS_Overlap) = $point->features(-type => ["CDS:$transcript_source"]);
-	    my $cds_offset = 0;
-	    my $cds = '';
-	    if( ! $CDS_Overlap ) {
-		# check for splice-site
-		$group{'Variant_effect'}= sprintf("%s %d %s %s",
-						  $var_type, $var_length,
-						  'intron',
-						  $name);
-		last;
-	    } elsif( $type ne 'SNV' ) {
-		# this is an indel - it must be a frameshift
-		$group{'Variant_effect'} = sprintf("%s %d %s %s",
-						   'frameshift_sequence_variation',
-						   $var_length,
-						   $mRNA->primary_tag,
-						   $name);
-		last;
-	    }
-	    
-	    my $gene_coords = Bio::Coordinate::GeneMapper->new(-in => 'chr',
-							       -out=> 'cds',
-							       -exons => [$mRNA->get_SeqFeatures('CDS')],
-							       );
-	    my $cds_point_loc = 
-		$gene_coords->map(Bio::Location::Simple->new(-seq_id=>$chrom,
-							     -start=> $pos,
-							     -end  => $pos));
-	    #print $cds_point_loc->start, " ", $cds_point_loc->seq_id," for $chrom:$pos\n";
-	    if( ! $cds_point_loc->start ) {
-		# UTR located SNV
-		$group{'Variant_effect'} = sprintf("%s %d %s %s",
-						   'sequence_variant_causing_no_change_of_translational_product',
-						   $var_length,
-						   $mRNA->primary_tag,
-						   $name);
-
-		last;
-	    }
-	    my $n =1;
-	    my %alt_CDS;
-
-	    for my $CDS ( sort { $a->start * $a->strand <=> 
-				 $b->start * $b->strand } 
-			  $mRNA->get_SeqFeatures('CDS') ) {
-		my ($start,$end) = ($CDS->start, $CDS->end);
-		if( $CDS->strand < 0 ) { 
-		    ($start,$end) = sort { $b <=> $a } ($start,$end);
-		}
-		$cds .= $dbh->seq($chrom,$start => $end );
-		$n++;
-	    }	    
-	    my $mapped_SNP = $cds_point_loc->start-1;
-	    $group{'Ref_Codon'} = substr($cds,
-					 3*int($mapped_SNP / 3),
-					 3);
-	    # iterate through the possible alleles (really there should be only 1) (Highlander!!)
-	    warn("alleles = @read_alleles $chrom:$pos\n") if @read_alleles >1;
-	    for my $allele ( @read_alleles ) {
-		$alt_CDS{$allele} = $cds;
-		if( $debug ) {
-		    warn("$name $chrom $pos ", $mRNA->location->to_FTstring()," $allele\n");
-		    warn("$ref_base --> $read_allele\n") if $debug;
-		    warn("cds ", length($cds)," point is ", $cds_point_loc->start,"\n");
-		}
-		my $orig;
-		if( $mRNA->strand > 0 ) { 
-		    $orig = substr($alt_CDS{$allele},$mapped_SNP,1);
-		} else {
-		    $orig = &reverse_complement(substr($alt_CDS{$allele},$mapped_SNP,1));
-		}
-		
-		if( $orig ne $ref_base ) {
-		    my ($left,$right) = ($pos-4,$pos+4);
-		    ($right,$left) = ($left,$right) if $mRNA->strand < 0;
-		    my $base = $dbh->seq($chrom,$left => $right);
-		    my $context = substr($alt_CDS{$allele},$mapped_SNP-4,9);
-		    warn("orig and ref disagree ($orig:$context) ($ref_base:$base) $chrom:$pos to ($allele)\n");
-		}
-		my $allele_replace = $mRNA->strand > 0 ? $allele : &reverse_complement($allele);
-		substr($alt_CDS{$allele},$mapped_SNP,1,$allele_replace);
-		$group{'Variant_Codon'} = substr($alt_CDS{$allele},
-						 3*int($mapped_SNP / 3),
-						 3);
-		# figure out the codon		
-	    }
-
-
-	    my $pep = Bio::Seq->new(-seq=>$cds)->translate->seq;
-	    $pep    =~ s/\*$//;	    
-	    for my $allele ( keys %alt_CDS ) {
-		my $altpep = Bio::Seq->new(-seq => $alt_CDS{$allele})->translate->seq;		
-		if( $debug ) {
-		    open(my $t1 => ">test/$name\_$row.fa") || die $!;
-		    print $t1 ">$name\n$cds\n";
-		    print $t1 ">alt\n$alt_CDS{$allele}\n";
-		    open(my $t2 => ">test/$name\_$row\_pep.pep") || die $!;
-		    print $t2 ">$name\n$pep\n";
-		    print $t2 ">alt\n$altpep\n";
-		}
-		my $effect;	    
-		$altpep =~ s/\*$//;
-		if( $altpep ne $pep ) {		
-		    if( $altpep =~ /\*/ ) {
-			$effect = 'sequence_variant_causing_nonsense_codon_change_in_transcript';
-		    } else {
-			$effect = 'sequence_variant_causing_missense_codon_change_in_transcript';
-		    }
-		} else {
-		    $effect = 'sequence_variant_causing_synonymous_change_in_transcript';
-		}	
-		$group{'Variant_effect'} = sprintf("%s %d %s %s",
-						   $effect,
-						   $var_length,
-						   $mRNA->primary_tag,
-						   $name);
-		
-	    }
+	  my ($CDS_Overlap) = $point->features(-type => ["CDS:$transcript_source"]);
+	  my $cds_offset = 0;
+	  my $cds = '';
+	  if ( ! $CDS_Overlap ) {
+	    # check for splice-site
+	    $group{'Variant_effect'}= sprintf("%s %d %s %s",
+					      $var_type, $var_length,
+					      'intron',
+					      $name);
 	    last;
+	  } elsif ( $type ne 'SNV' ) {
+	    # this is an indel - it must be a frameshift
+	    $group{'Variant_effect'} = sprintf("%s %d %s %s",
+					       'frameshift_sequence_variation',
+					       $var_length,
+					       $mRNA->primary_tag,
+					       $name);
+	    last;
+	  }
+	    
+	  my $gene_coords = Bio::Coordinate::GeneMapper->new(-in => 'chr',
+							     -out=> 'cds',
+							     -exons => [$mRNA->get_SeqFeatures('CDS')],
+							    );
+	  my $cds_point_loc = 
+	    $gene_coords->map(Bio::Location::Simple->new(-seq_id=>$chrom,
+							 -start=> $pos,
+							 -end  => $pos));
+	  #print $cds_point_loc->start, " ", $cds_point_loc->seq_id," for $chrom:$pos\n";
+	  if ( ! $cds_point_loc->start ) {
+	    # UTR located SNV
+	    $group{'Variant_effect'} = sprintf("%s %d %s %s",
+					       'sequence_variant_causing_no_change_of_translational_product',
+					       $var_length,
+					       $mRNA->primary_tag,
+					       $name);
+
+	    last;
+	  }
+	  my $n =1;
+	  my %alt_CDS;
+
+	  for my $CDS ( sort { $a->start * $a->strand <=> 
+				 $b->start * $b->strand } 
+			$mRNA->get_SeqFeatures('CDS') ) {
+	    my ($start,$end) = ($CDS->start, $CDS->end);
+	    if ( $CDS->strand < 0 ) { 
+	      ($start,$end) = sort { $b <=> $a } ($start,$end);
+	    }
+	    $cds .= $dbh->seq($chrom,$start => $end );
+	    $n++;
+	  }	    
+	  my $mapped_SNP = $cds_point_loc->start-1;
+	  $group{'Ref_Codon'} = substr($cds,
+				       3*int($mapped_SNP / 3),
+				       3);
+	  # iterate through the possible alleles (really there should be only 1) (Highlander!!)
+	  warn("alleles = @read_alleles $chrom:$pos\n") if @read_alleles >1;
+	  for my $allele ( @read_alleles ) {
+	    $alt_CDS{$allele} = $cds;
+	    if ( $debug ) {
+	      warn("$name $chrom $pos ", $mRNA->location->to_FTstring()," $allele\n");
+#	      warn("$ref_base --> $read_allele\n") if $debug;
+	      warn("cds ", length($cds)," point is ", $cds_point_loc->start,"\n");
+	    }
+	    my $orig;
+	    if ( $mRNA->strand > 0 ) { 
+	      $orig = substr($alt_CDS{$allele},$mapped_SNP,1);
+	    } else {
+	      $orig = &reverse_complement(substr($alt_CDS{$allele},$mapped_SNP,1));
+	    }
+	    if ( $orig ne $ref_base ) {
+	      my ($left,$right) = ($pos-1,$pos+1);
+	      ($right,$left) = ($left,$right) if $mRNA->strand < 0;
+	      my $base = $dbh->seq($chrom,$left => $right);
+	      my $context = substr($alt_CDS{$allele},$mapped_SNP-1,3);
+	      warn("orig and ref disagree ($orig:$context) ($ref_base:$base) $chrom:$pos to ($allele)\n");
+	    }
+	    my $allele_replace = $mRNA->strand > 0 ? $allele : &reverse_complement($allele);
+	    substr($alt_CDS{$allele},$mapped_SNP,1,$allele_replace);
+	    $group{'Variant_Codon'} = substr($alt_CDS{$allele},
+					     3*int($mapped_SNP / 3),
+					     3);
+	    # figure out the codon		
+	  }
+
+
+	  my $pep = Bio::Seq->new(-seq=>$cds)->translate->seq;
+	  $pep    =~ s/\*$//;	    
+	  for my $allele ( keys %alt_CDS ) {
+	    my $altpep = Bio::Seq->new(-seq => $alt_CDS{$allele})->translate->seq;		
+	    if ( $debug ) {
+	      open(my $t1 => ">test/$name\_$row.fa") || die $!;
+	      print $t1 ">$name\n$cds\n";
+	      print $t1 ">alt\n$alt_CDS{$allele}\n";
+	      open(my $t2 => ">test/$name\_$row\_pep.pep") || die $!;
+	      print $t2 ">$name\n$pep\n";
+	      print $t2 ">alt\n$altpep\n";
+	    }
+	    my $effect;	    
+	    $altpep =~ s/\*$//;
+	    if ( $altpep ne $pep ) {		
+	      if ( $altpep =~ /\*/ ) {
+		$effect = 'sequence_variant_causing_nonsense_codon_change_in_transcript';
+	      } else {
+		$effect = 'sequence_variant_causing_missense_codon_change_in_transcript';
+	      }
+	    } else {
+	      $effect = 'sequence_variant_causing_synonymous_change_in_transcript';
+	    }	
+	    $group{'Variant_effect'} = sprintf("%s %d %s %s",
+					       $effect,
+					       $var_length,
+					       $mRNA->primary_tag,
+					       $name);
+		
+	  }
+	  last;
 	}
-    } else {
+      } else {
 	$group{'Variant_effect'}= sprintf("%s %d %s",
 					  $var_type, $var_length,
 					  'intergenic_region');
+      }
+      # strand is '+' I guess
+      # frame is '.' I guess
+
+      my $group = join(";", grep { defined }
+		       map { exists $group{$_} ? sprintf("%s=%s",$_,$group{$_}) : undef } @group_fields);
+      print $ofh join("\t", $chrom,$variant_source,$type,
+		      $pos, $pos+1, $qual, '+',
+		      '.',$group), "\n";
+      last if $debug && $row > 100;
+
     }
-# strand is '+' I guess
-# frame is '.' I guess
-
-    
-    my $group = join(";", grep { defined }
-		     map { exists $group{$_} ? sprintf("%s=%s",$_,$group{$_}) : undef } @group_fields);
-    print $ofh join("\t", $chrom,$variant_source,$type,
-	       $pos, $pos+1, $snp_qual, '+',
-	       '.',$group), "\n";
-    last if $debug && $row > 100;
-
-}
-
+  }
 
 sub reverse_complement { Bio::Seq->new(-seq => shift)->revcom->seq }
 __END__
