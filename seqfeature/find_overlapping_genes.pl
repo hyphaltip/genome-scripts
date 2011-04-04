@@ -8,7 +8,7 @@ my ($user,$pass,$dbname,$host);
 $host ='localhost';
 my $prefix;
 my $debug = 0;
-my $gene_source = 'gene:NC10_CALLGENES_FINAL_2'; # default to Neurospora data
+my $gene_source = 'gene:NC10_CALLGENES_FINAL_5'; # default to Neurospora data
 my $padding = 200; # bp to look on either side of a gene
 my $output;
 
