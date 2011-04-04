@@ -52,7 +52,7 @@ while(<>) {
 	}
 #	warn($_);
     }
-    next unless uc $line[2] eq 'CDS';
+    next unless uc $line[2] eq 'CDS' || $line[2] eq 'exon';
     if( $last =~ /(Name|Transcript|GenePrediction)\s+(\S+)/ ) {
 	($group) = $2;
     } elsif( $last =~ /Parent=([^;]+);?/) { # gff3
@@ -81,7 +81,7 @@ while(<>) {
 	warn("cannot find gene group for $group\n");
 	die;
     }
-    if( ! $seen{$gid}++ ) {
+    if( ! $seen{$gid}++ && $line[2] eq 'CDS') {
 	push @order, $gid;
     }
     push @{$gene{$gid}}, [ @line, 
