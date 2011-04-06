@@ -28,7 +28,7 @@ GetOptions(
 unless(  defined $dbname ) {
     die("no dbname provided\n");
 }
-
+my (undef,$src) = split(/:/,$gene_source,2);
 ($user,$pass) = &read_cnf($user,$pass) unless $pass && $user;
 my $dsn = sprintf('dbi:mysql:database=%s;host=%s',$dbname,$host);
 my $dbh = Bio::DB::SeqFeature::Store->new(-adaptor => 'DBI::mysql',
@@ -51,10 +51,10 @@ print $output join("\t", qw(CHROM GENE_LEFT MRNA_LEFT START_LEFT STOP_LEFT STRAN
 my %seen;
 while( my $gene = $iter->next_seq ) {
     my $name = $gene->name;    
-    for my $mRNA ( $gene->get_SeqFeatures('mRNA') ) {
+    for my $mRNA ( $gene->get_SeqFeatures("mRNA:$src") ) {
 	my @overlaps = grep { $_->name ne $name } $mRNA->segment->features(-type => $gene_source);
 	for my $overlap ( @overlaps ) {
-	    for my $overlap_mRNA ( $overlap->get_SeqFeatures('mRNA') ) {		
+	    for my $overlap_mRNA ( $overlap->get_SeqFeatures("mRNA:$src") ) {		
 		next if $overlap_mRNA->name eq $mRNA->name;
 		next if $seen{$overlap_mRNA->name}->{$mRNA->name}++ ||
 		    $seen{$mRNA->name}->{$overlap_mRNA->name}++;
@@ -64,7 +64,7 @@ while( my $gene = $iter->next_seq ) {
 		my ($istart,$istop,$istrand) = $range->intersection($mRNA);
 		my $i_range = $dbh->segment($gene->seq_id, $istart => $istop);
 		my %types;
-		for my $f ( $i_range->features(qw(CDS three_prime_utr five_prime_utr)) ) {
+		for my $f ( $i_range->features(map { $_ .":$src"} qw(CDS three_prime_utr five_prime_utr)) ) {
 		    $types{$f->primary_tag}++;
 		}
 # print out this overlapping
