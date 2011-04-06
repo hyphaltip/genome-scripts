@@ -52,6 +52,7 @@ while (my $seq = $in->next_seq ) {
      $gene_count{$synon}++;
    }
  }
+  next if ! keys %gene_count;
   if ( $pergene ) {
     printf "%s\t%.3f\n",$seq->id, 
       ( $gene_count{'G'} || 0 + $gene_count{'C'} || 0 ) / 
