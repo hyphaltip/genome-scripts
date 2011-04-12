@@ -33,7 +33,9 @@ for my $file (@ARGV) {
     if( $f =~ /(\S+_s_\d+)\_(\d+)\.p(\d+)$/ ||
 	$f =~ /(\S+)\_(\d+)\.p(\d+)$/ ) {
 	$sets{"$1.$3"}->{$2} = $file;
-    }    
+    } elsif( $f =~ /(\S+)\.p(\d+)$/ ) {
+	$sets{$1}->{$2} = $file;
+    }
 }
 my %conditions;
 for my $set ( keys %sets ) {
@@ -88,13 +90,18 @@ EOL
 	    while(<$infh>) {
 		my $record = $_;
 		my $name;
-		if( s/^@(\S+)\#\d+\/([12])// ||
-		    s/^@(\S+\.\d+)\s+\S+:\d+\/([12])// ) {
+		if( /^@(\S+)\#\d+\/([12])/ ||
+		    /^@(\S+\.\d+)\s+\S+:\d+\/([12])/  ) {
 		    $name = $1;
 		    if( $2 != $lane ) {
 			chomp($_);
 			warn("lane ($lane) does not match read name ($_)\n");
 		    }
+		} elsif( /^@(\S+):[YN]/) {
+   	 		$name = $1;	
+		} else{
+			warn("cannot parse name out for $_");
+			next;
 		}
 		for ( 0..2) {
 		    $record .= <$infh>;
