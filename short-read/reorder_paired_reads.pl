@@ -43,7 +43,7 @@ for my $set ( keys %sets ) {
     for my $t ( keys %{$sets{$set}} ) {	
 	warn "$set $t ",$sets{$set}->{$t},"\n" if $debug;
 	my $exe = sprintf(<<EOL
-fastq_quality_filter -Q %d -q %d -p %d -i %s | fastq_quality_trimmer -Q %d -t %d -l %d > %s
+fastq_quality_filter -v -Q %d -q %d -p %d -i %s | fastq_quality_trimmer -v -Q %d -t %d -l %d -o %s
 EOL
 ,
 			  $offset, $min_qual, $min_percent, $sets{$set}->{$t},
