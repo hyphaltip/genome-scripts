@@ -2,6 +2,25 @@
 use strict;
 use Bio::Tools::IUPAC;
 my %rev_alleles = Bio::Tools::IUPAC->iupac_rev_iub();
+# can also replace this with
+# my %rev_alleles =  (A   => 'A',
+#                                T       => 'T',
+#                                C       => 'C',
+#                               G       => 'G',
+#                              AC      => 'M',
+#                                AG      => 'R',
+#                               AT      => 'W',
+#                               CG      => 'S',
+#                                CT      => 'Y',
+#                                'GT'    => 'K',
+#                                ACG     => 'V',
+#                                ACT     => 'H',
+#                                AGT     => 'D',
+#                                CGT     => 'B',
+#                                ACGT=> 'N',
+#                               N       => 'N'
+#                               );
+
 my @strains;
 while(<>) {
     if( /^\#CHROM/ ) {
