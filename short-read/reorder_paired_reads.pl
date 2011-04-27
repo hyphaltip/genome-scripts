@@ -51,6 +51,7 @@ EOL
 			  $offset, $min_qual, $min_percent, $sets{$set}->{$t},
 			  $offset, $min_qual, $min_length, 
 			  "$temp/$set.$t\_\_$base");	
+	warn($exe,"\n") if $debug;
 	`$exe`;
     }
     opendir(DIR,$temp);
