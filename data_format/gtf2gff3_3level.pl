@@ -127,7 +127,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	    next;
 	}
 	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exons;
-	my ($stop_codon)   = grep { $_->[2] eq 'stop_codon'  } @$exons;
+	my ($stop_codon)    = grep { $_->[2] eq 'stop_codon'  } @$exons;
 	
 	if( ! @exons ) {
 	  for my $e ( @cds ) {
