@@ -1,20 +1,28 @@
 #!/usr/bin/perl -w
 use strict;
 
+my $file = shift || die "cannot run without input file";
+my $genome = shift;
+
+open(my $fh => $file) || die "cannot open $file\n";
 my %types;
-while (<>) {
+while (<$fh>) {
   next if /^\#/;
   my ($chrom,$src,$type,$start,$end,$score,$strand) = split;
   for my $pos ( $start..$end ) {
-    $types{$type}->{$chrom}->{$pos}++;
+    $types{$chrom}->{$pos}->{$type}++;
   }
 }
 
-for my $type ( keys %types ) {
-  my $total = 0;
-  for my $chr ( keys %{$types{$type}} ) {
-    # count the number nt that are covered by this feature type;
-    $total += scalar keys %{$types{$type}->{$chr}};
+my %totals;
+for my $chrom ( keys %types ) {
+  for my $t ( values %{$types{$chrom}} ) {
+    for my $kind ( keys %$t ) {
+# kind = gene, CDS, tRNA, etc
+      $totals{$kind}++;
+    }
   }
-  print "$type $total nt\n";
+}
+for my $type ( keys %totals ) {
+  print "$type $totals{$type} nt\n";
 }
