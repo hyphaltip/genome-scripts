@@ -2,7 +2,6 @@
 use strict;
 
 my $file = shift || die "cannot run without input file";
-my $genome = shift;
 
 open(my $fh => $file) || die "cannot open $file\n";
 my %types;
