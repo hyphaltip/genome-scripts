@@ -40,8 +40,11 @@ while(<>) {
 	    my $alleles = join("",sort grep { ! $seen{$_}++ } 
 			  map { $site_alleles[$_] } 
 			  split(/\//,$genotype));
-	   
-	    push @row, exists $rev_alleles{$alleles} ? $rev_alleles{$alleles} : warn "cannot find $alleles for $chrom $pos\n";
+	    if( $rev_alleles{$alleles} ) {
+		push @row, $rev_alleles{$alleles};
+	    } else {
+		warn "cannot find $alleles for $chrom $pos\n";
+	    }
 	}
 	print join("\t", @row),"\n";
     }
