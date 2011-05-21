@@ -5,7 +5,7 @@ my $debug = 0;
 use Getopt::Long;
 my ($transprefix,$prefix) = ( '','');
 my $skipexons;
-GetOptions('fix!' => \$fix,
+GetOptions('fix!' => \$fix, # get point name
 	   's|skipexons:s' => \$skipexons,
 	   'p|prefix:s' => \$prefix,
 	   'tp|transprefix:s' => \$transprefix,
@@ -29,29 +29,44 @@ while(<>) {
     $line[-1] =~ s/\s+$//;
     my %set = map { split(/\s+/,$_,2) } split(/\s*;\s*/,pop @line);
 
-    my ($gid,$tid,$pid,$tname,$gname,$alias) = 
-	( map { $set{$_} =~ s/\"//g;
-		$set{$_} }  
-	  ( grep { exists $set{$_} } 
-	    qw(gene_id transcript_id protein_id
-	       transcript_name gene_name aliases))
-	  );    
+    my ($gid,$tid,$pid,$tname,$gname,$alias,$name,$transID,$protID) = 
+	( map { 
+	    my $rc = undef;
+	    if( exists $set{$_} ) {
+		$set{$_} =~ s/\"//g;
+		$rc = $set{$_}; 
+	    } 
+	    $rc;
+	} qw(gene_id transcript_id protein_id 
+	     transcript_name gene_name aliases name transcriptId proteinId));
+	      
+
+    $tid = $transID if ! $tid && $transID;
+    $pid = $protID if ! $pid && $protID;
+    $gname = $name if ! $gname && $name;
     if( ! $tid ) {
 	$tid = $last_tid;
     }
+#    if( ! $gid ) {
+#	$gid = $tid;
+#    }
+
     if( defined $tid && $tid =~ /^\d+$/ ) { # JGI transcript ids are numbers only
 	$tid = "t_$tid";
     }
+
     if( $tname ) {
 	$transcript2name{$tid} = $tname;
     }
-    if( ! $gid || ! $tid) {
+    
+    if( ! $gid && ! $tid) {
 	warn(join(" ", keys %set), "\n");
-	die "Not GID or TID invalid GTF: $line \n";
+	die "No GID or TID invalid GTF: $line \n";
     }
     if( $pid ) {
 	$transcript2protein{$tid} = $pid;
     }
+    $gid = $tid if ! $gid;
     # warn("tid=$tid pid=$pid gid=$gid tname=$tname gname=$gname\n");
     if( $fix ) {
 	if( $tid =~ /(\S+)\.\d+$/) {
@@ -118,16 +133,19 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 		       $gene->{strand},
 		       '.',
 		       $ninth)),"\n";
-    while( my ($transcript,$exons) = each %{$gene->{'transcripts'}} ) {
+    while( my ($transcript,$exonsref) = each %{$gene->{'transcripts'}} ) {
+	@$exonsref = sort { $a->[3] * ($a->[6] eq '-' ? -1 : 1) <=> 
+			   $b->[3] * ($b->[6] eq '-' ? -1 : 1) } @$exonsref;
+
 	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
-	my @exons = grep { $_->[2] eq 'exon' } @$exons;
-	my @cds   = grep { $_->[2] eq 'CDS'  } @$exons;	
+	my @exons = grep { $_->[2] eq 'exon' } @$exonsref;
+	my @cds   = grep { $_->[2] eq 'CDS'  } @$exonsref;	
 	if( ! @cds ) {
-	    warn("no CDS found in $mrna_id ($gid,$transcript) ", join(",", map { $_->[2] } @$exons),"\n") if $debug;
+	    warn("no CDS found in $mrna_id ($gid,$transcript) ", join(",", map { $_->[2] } @$exonsref),"\n") if $debug;
 	    next;
 	}
-	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exons;
-	my ($stop_codon)    = grep { $_->[2] eq 'stop_codon'  } @$exons;
+	my ($start_codon)   = grep { $_->[2] eq 'start_codon'  } @$exonsref;
+	my ($stop_codon)    = grep { $_->[2] eq 'stop_codon'  } @$exonsref;
 	
 	if( ! @exons ) {
 	  for my $e ( @cds ) {
