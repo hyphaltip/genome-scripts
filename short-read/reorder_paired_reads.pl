@@ -4,7 +4,7 @@ use File::Spec;
 use Getopt::Long;
 use File::Temp qw(tempdir);
 my $tempbase;
-my ($min_length, $min_qual,$min_percent) = (28,30,70);
+my ($min_length, $min_qual,$min_percent) = (50,20,70);
 my $offset = 33; # Sanger offset is 33, Illumina is 64
 my $outdir = ".";
 my $debug = 0;
@@ -31,7 +31,8 @@ for my $file (@ARGV) {
     my ($ext) = pop @name;
     my $f = join(".",@name);
     if( $f =~ /(\S+_s_\d+)\_(\d+)\.p(\d+)$/ ||
-	$f =~ /(\S+)\_(\d+)\.p(\d+)$/ ) {
+	$f =~ /(\S+)(\d+)\.p(\d+)$/ ) {
+        warn("name is $1 -> $3 -> $2\n");
 	$sets{"$1.$3"}->{$2} = $file;
     } elsif( $f =~ /(\S+)\.p(\d+)$/ ) {
 	$sets{$1}->{$2} = $file;
@@ -42,7 +43,7 @@ for my $set ( keys %sets ) {
     my ($base) = split(/\./,$set);
     my $temp = tempdir(DIR => $tempbase, CLEANUP => 1);
     warn "temp is $temp\n" if $debug;
-    for my $t ( keys %{$sets{$set}} ) {	
+    for my $t ( sort { $a <=> $b } keys %{$sets{$set}} ) {	
 	warn "$set $t ",$sets{$set}->{$t},"\n" if $debug;
 	my $exe = sprintf(<<EOL
 fastq_quality_filter -v -Q %d -q %d -p %d -i %s | fastq_quality_trimmer -v -Q %d -t %d -l %d -o %s
