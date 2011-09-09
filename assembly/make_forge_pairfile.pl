@@ -10,6 +10,9 @@ while(<$fh>) {
   if( $id =~ /(\S+)\/[1]/ ) { 
    my $nm = $1;
    print "$nm/1 $nm/2 $libsize\n"; 
+ } elsif( $id =~ /(\S+)\.[fr]/ ) {
+	 my $nm = $1;
+   print "$nm.f $nm.r $libsize\n";
  } else {
   warn("unable to process, expect only 1 kind of read naming now ($id)\n");
  }
