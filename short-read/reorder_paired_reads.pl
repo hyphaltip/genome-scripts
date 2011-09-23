@@ -3,8 +3,9 @@ use strict;
 use File::Spec;
 use Getopt::Long;
 use File::Temp qw(tempdir);
+use DBD::SQLite;
 my $tempbase;
-my ($min_length, $min_qual,$min_percent) = (50,20,70);
+my ($min_length, $min_qual,$min_percent) = (50,28,70);
 my $offset = 33; # Sanger offset is 33, Illumina is 64
 my $outdir = ".";
 my $debug = 0;
