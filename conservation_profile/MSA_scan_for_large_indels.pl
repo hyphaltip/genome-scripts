@@ -3,9 +3,11 @@ use strict;
 use Bio::AlignIO;
 use Getopt::Long;
 
+my $Gapchar = '-';
 my $Min_gapsize = 40;
 my $Max_gapsize = 10000;
 my $Max_Npercent = 0.50;
+my $ignoremono = 1;
 
 my $alndir = 'alignments';
 my $ref_genome;
@@ -19,6 +21,10 @@ GetOptions('r|ref=s' => \$ref_genome,
 	   'n|names:s' => \$namesfile,
 	   'd|dir:s' => \$alndir,
 	   'v|verbose!' => \$debug,
+	   'min:i'      => \$Min_gapsize,
+           'max:i'      => \$Max_gapsize,
+	   'p|percent:s'=> \$Max_Npercent,
+	   'pairwise!' => sub { $ignoremono = 0 },
 	   );
 die"must have refgenome with -r or --ref\n" unless $ref_genome;
 
@@ -96,16 +102,16 @@ for my $chunk ( @chunks ) {
 		my $ch = substr($s,0,1,'');
 		$alleles{$ch}++;
 		if( $si != $order ) {
-		    $allgaps{$i}++ if $ch eq '-';
+		    $allgaps{$i}++ if $ch eq $Gapchar;
 		}
 		$si++;
 	    }
-	    next if keys %alleles == 1;	# ignore where monomorphic
+	    next if $ignoremono && keys %alleles == 1;	# ignore where monomorphic
 	    if( ! exists $alleles{'-'} ) {
 		$snv{$i} = join(",",keys %alleles); # store the SNP alleles
 	    }
 	}
-	my @gaps = sort { $a <=> $b } grep { $allgaps{$_} > 1 } keys %allgaps;
+	my @gaps = sort { $a <=> $b } grep { ! $ignoremono || $allgaps{$_} > 1 } keys %allgaps;
 	my @snps = sort { $a <=> $b } keys %snv;
 	my @collapse_gaps = &collapse_nums(@gaps); # run the collapse algorithm to get runs of GAPs
 	warn("collapse_gaps = @collapse_gaps\n") if $debug;
