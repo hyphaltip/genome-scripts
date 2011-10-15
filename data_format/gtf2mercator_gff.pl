@@ -45,6 +45,7 @@ while(<>) {
     $tid = $transID if ! $tid && $transID;
     $pid = $protID if ! $pid && $protID;
     $gname = $name if ! $gname && $name;
+    $gname = $tname if ! $gname && $tname;
         
     $gid ||= $gname;
     $tid ||= $gid.".T";
