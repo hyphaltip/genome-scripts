@@ -440,7 +440,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	}
 	
 	print join("\n", ( map { $_->[1] } sort { $a->[0] <=> $b->[0] }
-			   @exons, @cds)), "\n";
+			   (@exons, @cds))), "\n";
 	if( $strand_val > 0 ) {
 	  if( exists $utrs{'3utr'} ) {
 	    print join("\n", map { $_->[1] } sort { $a->[0] <=> $b->[0] }
