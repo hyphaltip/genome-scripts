@@ -110,6 +110,8 @@ for my $t (  @ftypes ) {
     100 * $stats{$t}->sum / $genome;
 }
 
+print "Genome size is $genome\n";
+
 sub read_cnf {
     my ($user,$pass) = @_;
     if( -f "$HOME/.my.cnf") {
