@@ -10,6 +10,7 @@ GetOptions('fix!' => \$fix, # get point name
 	   'p|prefix:s' => \$prefix,
 	   'tp|transprefix:s' => \$transprefix,
 	   'v|debug!' => \$debug);
+$transprefix = $prefix if defined $prefix && ! defined $transprefix;
 my %genes;
 my %genes2alias;
 my %transcript2name;
@@ -52,13 +53,13 @@ while(<>) {
 #    }
 
     if( defined $tid && $tid =~ /^\d+$/ ) { # JGI transcript ids are numbers only
-	$tid = "t_$tid";
+	$tid = "$prefix\_$tid";
     }
 
     if( $tname ) {
 	$transcript2name{$tid} = $tname;
     }
-    
+
     if( ! $gid && ! $tid) {
 	warn(join(" ", keys %set), "\n");
 	die "No GID or TID invalid GTF: $line \n";
@@ -98,7 +99,7 @@ while(<>) {
 	$genes2alias{$gid} = join(',',split(/\s+/,$alias));
     }
     push @{$genes{$gid}->{transcripts}->{$tid}}, [@line];
-    $last_tid = $tid;    
+    $last_tid = $tid;
 }
 
 print "##gff-version 3\n","##date-created ".localtime(),"\n";
@@ -107,7 +108,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			  $genes{$a}->{min} <=> $genes{$b}->{min}
 		  } keys %genes ) {
     my $gene = $genes{$gid};
-    my $gene_id = sprintf("%sgene%06d",$prefix,$counts{'gene'}++);
+    my $gene_id = $gid; #sprintf("%sgene%06d",$prefix,$counts{'gene'}++);
     my $aliases = $genes2alias{$gid};
     my $gname   = $gene2name{$gid};
     if( $gname ) {
@@ -137,7 +138,8 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	@$exonsref = sort { $a->[3] * ($a->[6] eq '-' ? -1 : 1) <=> 
 			   $b->[3] * ($b->[6] eq '-' ? -1 : 1) } @$exonsref;
 
-	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
+#	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
+	my $mrna_id = sprintf("%sT%d",$transcript,$counts{'mRNA'}->{$transcript}++);
 	my @exons = grep { $_->[2] eq 'exon' } @$exonsref;
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exonsref;	
 	if( ! @cds ) {
@@ -237,7 +239,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	}
 
 	for my $cds_i ( @cds ) {
-	  my $exon_ninth = sprintf("ID=%scds%06d;Parent=%s",
+	  my $exon_ninth = sprintf("ID=%s_cds%06d;Parent=%s",
 				   $prefix,
 				   $counts{'CDS'}++,
 				   $mrna_id);
@@ -277,7 +279,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%sutr5%06d;Parent=%s",
+			     sprintf("ID=%s_utr5%06d;Parent=%s",
 				     $prefix,
 				     $counts{'5utr'}++,
 				     $mrna_id)))];
@@ -294,7 +296,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			   '.',
 			   $strand,
 			   '.',
-			   sprintf("ID=%sutr5%06d;Parent=%s",
+			   sprintf("ID=%s_utr5%06d;Parent=%s",
 				   $prefix,
 				   $counts{'5utr'}++,
 				   $mrna_id)
@@ -318,7 +320,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%sutr3%06d;Parent=%s",
+			     sprintf("ID=%s_utr3%06d;Parent=%s",
 				     $prefix,
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
@@ -336,7 +338,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%sutr3%06d;Parent=%s",
+			     sprintf("ID=%s_utr3%06d;Parent=%s",
 				     $prefix,
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
@@ -358,7 +360,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			   '.',
 			   $strand,
 			   '.',
-			   sprintf("ID=%sutr5%06d;Parent=%s",
+			   sprintf("ID=%s_utr5%06d;Parent=%s",
 				   $prefix,
 				   $counts{'5utr'}++,
 				   $mrna_id)) ];
@@ -374,7 +376,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			   '.',
 			   $strand,
 			   '.',
-			   sprintf("ID=%sutr5%06d;Parent=%s",
+			   sprintf("ID=%s_utr5%06d;Parent=%s",
 				   $prefix,
 				   $counts{'5utr'}++,
 				   $mrna_id))];
@@ -395,7 +397,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%sutr3%06d;Parent=%s",
+			     sprintf("ID=%s_utr3%06d;Parent=%s",
 				     $prefix,
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
@@ -412,7 +414,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%sutr3%06d;Parent=%s",
+			     sprintf("ID=%s_utr3%06d;Parent=%s",
 				     $prefix,
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
@@ -421,7 +423,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	    }
 	  }
 	  $exon = [$exon->[3],
-		   join("\t", @$exon, sprintf("ID=%sexon%06d;Parent=%s",
+		   join("\t", @$exon, sprintf("ID=%s_exon%06d;Parent=%s",
 					      $prefix,
 					      $counts{'exon'}++,
 					      $mrna_id))];
