@@ -7,11 +7,11 @@ use Getopt::Long;
 my $jobdir = File::Spec->catdir($HOME,'jobs');
 my $reference_genome;
 my $gatk_jarfile = '/srv/zpools/tern.ib_bigdata/home/stajichlab/shared/pkg/GATK/GenomeAnalysisTK.jar';
-my $javamem ="-Xmx16";
+my $javamem ="-Xmx128g";
 my $tmpdir  = " -Djava.io.tmpdir=~/bigdata/tmp";
 my $force = 0;
-my $outname = '../vcf/allSNPS.raw.vcf';
-my $outmetrics = '../vcf/allSNPs.info';
+my $outname = 'allSNPS.raw.vcf';
+my $outmetrics = 'allSNPs.info';
 GetOptions(
     'r|ref:s'    => \$reference_genome,
     'jar|gatk:s' => \$gatk_jarfile,
@@ -28,4 +28,4 @@ my ($first) = @bamfiles;
 my (undef,$bdir,$fname) = File::Spec->splitpath(File::Spec->rel2abs($first));
 print "cd $bdir\n";    
 my $bamlst = join(" ", map { sprintf("-I %s",$_) } @bamfiles);
-print "java $tmpdir $javamem -jar $gatk_jarfile -T UnifiedGenotyper -R $reference_genome $bamlst -o $outname -glm BOTH --read_filter BadCigar -nt 48 --metrics_file $outmetrics\n";
+print "java $tmpdir $javamem -jar $gatk_jarfile -T UnifiedGenotyper -R $reference_genome $bamlst -o $outname -glm SNP --read_filter BadCigar -nt 48 --metrics_file $outmetrics\n";
