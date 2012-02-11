@@ -152,8 +152,17 @@ for my $genome ( readdir(DIR) ) {
 		if( $mRNA->has_tag('transl_table') ) {
 		    ($transl_table) = $mRNA->get_tag_values('transl_table');
 		}
+		my $codon_offset = 0;
+	        if( $mRNA->has_tag('codon_start') ) {
+		   ($codon_offset) = $mRNA->get_tag_values('codon_start');
+		   $codon_offset--;
+		}
 		my @CDS = sort { $a->strand * $a->start <=>
 				     $b->strand * $b->start } $mRNA->get_SeqFeatures('cds');
+		map { $_->phase($_->phase - 1) } @CDS;
+		if( $codon_offset  ){
+		  $CDS[0]->phase($codon_offset);
+		}
 		warn(" there are ", scalar @CDS, " cds features for $id\n");
 		next if( @CDS == 0 );
 		my $splitloc = Bio::Location::Split->new();

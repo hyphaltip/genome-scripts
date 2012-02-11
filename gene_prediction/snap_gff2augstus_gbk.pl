@@ -52,8 +52,8 @@ if( $target ) {
 					      -dsn    => $target,
 					      -fasta  => $fa,
 					      -create => 1);
-	open($fh => ">$gff_chroms") || die $!;
     }
+    open($fh => ">$gff_chroms") || die $!;
 } else {
     $db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb3',
 					  -dsn    => $tmpdir,
@@ -75,7 +75,7 @@ if( $fh ) {
 	push @seqs, $seq;
     }
     
-    open(my $in => $gff ) || die $!;
+    open(my $in => $gff ) || die "$gff: $!";
     my %genes;
     my (%len);
     my $last_nm;
@@ -152,6 +152,7 @@ while( my $gene = $iterator->next_seq ) {
 	my @cds = $mRNA->get_SeqFeatures('CDS');
 	if( @cds == 1 ) {
 	    $loc = $cds[0]->location;
+	    $loc->seq_id('');
 	} else {
 	    $loc = Bio::Location::Split->new();
 	    for my $cds ( sort { $a->start <=> $b->start } @cds ) {
