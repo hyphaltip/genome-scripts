@@ -24,27 +24,47 @@ use Env qw(HOME);
 
 my ($user,$password,$dbname);
 my $host = 'localhost';
-my $dir = shift;
+my $dir;
+my $scaff_type;
+my $top_feature_type = 'gene';
 GetOptions("db|dbname:s" => \$dbname,
 	   "u|user:s"    => \$user,
+	   'dir:s'       => \$dir,
+	   's|scaffold:s' => \$scaff_type,
+	   't|top|f|feature:s' => \$top_feature_type,
 	   "p|pass|password:s" => \$password);
 
 ($user,$password) = &read_cnf unless defined $user;
 
-#my $dsn = sprintf('dbi:mysql:database=%s;host=%s',$dbname,$host);
 
-my $db = Bio::DB::SeqFeature::Store->new(-adaptor => 'berkeleydb',
+my $db;
+
+if( $dir ) {
+    $db = Bio::DB::SeqFeature::Store->new(-adaptor => 'berkeleydb',
 					  -dir     => $dir);
-#my  $db = Bio::DB::SeqFeature::Store->new(-adaptor  => 'DBI::mysql',
-#					  -user     => $user,
-#					  -password => $password,
-#					  -dsn      => $dsn);
+} else {
+    my $dsn = sprintf('dbi:mysql:database=%s;host=%s',$dbname,$host);
+    $db = Bio::DB::SeqFeature::Store->new(-adaptor  => 'DBI::mysql',
+					  -user     => $user,
+					  -password => $password,
+					  -dsn      => $dsn);   
+}
+
+if( ! defined $scaff_type ) {
+    if( $db->get_features_by_type('scaffold') ) {
+	$scaff_type = 'scaffold';
+    } elsif( $db->get_features_by_type('contig') ) {
+	$scaff_type = 'contig';
+    } elsif( $db->get_features_by_type('chromosome') ) {
+	$scaff_type = 'chromosome';
+    }
+}
 my $genome = 0;
 my %CHROMS;
 {
     my $i = 0;
     for my $chrom ( sort { $a->id cmp $b->id } 
-		    $db->get_features_by_type('scaffold') ) {
+		    $db->get_features_by_type($scaff_type) ) {
 	$CHROMS{$chrom->seq_id} = [$i++,$chrom->length];
 	$genome += $chrom->length;
     }
@@ -63,7 +83,7 @@ for my $chrom ( sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
     my $segment = $db->segment($chrom);
     my $lastgene;
     
-    for my $gene ( $segment->features('gene') ) {
+    for my $gene ( $segment->features($top_feature_type) ) {
 	$stats{'gene'}->add_data($gene->length);
 	for my $mRNA( $gene->get_SeqFeatures ) {
 	    for my $t ( qw(exon cds) ) {
@@ -103,8 +123,8 @@ for my $chrom ( sort { $CHROMS{$a}->[0] <=> $CHROMS{$b}->[0] }
 }
 
 for my $t (  @ftypes ) {
-    printf "%s Max = %d Mean = %.1f Median = %1.f Total = %d N = %d %.2f Mb Total %% %.2f\n",
-    $t, $stats{$t}->max, $stats{$t}->mean, $stats{$t}->median,
+    printf "%s Max = %d Min = %d Mean = %.1f Median = %1.f Total = %d N = %d %.2f Mb Total %% %.2f\n",
+    $t, $stats{$t}->max, $stats{$t}->min, $stats{$t}->mean, $stats{$t}->median,
     $stats{$t}->sum,$stats{$t}->count,
     $stats{$t}->sum / 1000000, 
     100 * $stats{$t}->sum / $genome;
