@@ -15,7 +15,7 @@ while(my $id = <>) {
     my $desc =<>;
     my $qual = <>;
     
-    if (($id =~ /\S+\s+\d+\:([YN]):\d+/) && $1 eq 'N') {
+    if (($id =~ /\S+\s+\d+\:([YN]):\d+/) && $1 eq 'Y') {
 	print $skipfh $id,$seq,$desc,$qual if $write_skip;
 	next;
     }
