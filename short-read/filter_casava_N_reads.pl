@@ -6,7 +6,7 @@ my $write_skip;
 GetOptions(
 	   'debug|skip!' => \$write_skip,
 	   );
-
+my $skipfh;
 if( $write_skip  ) {
     open($skipfh => ">skip") || die $!;
 }
