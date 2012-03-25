@@ -9,9 +9,11 @@ my $oformat = 'nexus';
 my $outfile = 'allseq.nex';
 my $ext = 'fasaln.trim';
 my $dir;
-
+my @expected;
+my $expected_file;
 GetOptions('d|dir:s'   => \$dir,
 	   'ext:s'     => \$ext,
+	   'expected:s' => \$expected_file,
 	   'o|out:s'   => \$outfile,
 	   );
 
@@ -19,6 +21,12 @@ die("need a dir") unless $dir && -d $dir;
 
 opendir(DIR, $dir) || die"$dir: $!";
 
+if( $expected_file && open(my $fh => $expected_file) ) {
+    while(<$fh>) {
+	chomp;
+	push @expected, $_;
+    }
+}
 my (%matrix);
 
 for my $file (sort readdir(DIR) ) {
@@ -27,8 +35,19 @@ for my $file (sort readdir(DIR) ) {
     my $in = Bio::AlignIO->new(-format => $iformat,
 			       -file   => "$dir/$file");
     if( my $aln = $in->next_aln ) {
+	my %seen;
 	for my $seq ( $aln->each_seq ) {
-	    $matrix{$seq->id} .= $seq->seq;
+	    my $id = $seq->id;
+	    if( $id =~ /(\S+)\|/) { 
+		$id = $1;
+	    }
+	    $matrix{$id} .= $seq->seq;
+	    $seen{$id}++;
+	}
+	for my $exp ( @expected ) {
+	    if( ! $seen{$exp} ) {
+		$matrix{$exp} .= '-' x $aln->length;
+	    }
 	}
     }
 }
