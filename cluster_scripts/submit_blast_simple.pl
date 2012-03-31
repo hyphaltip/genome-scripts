@@ -4,28 +4,26 @@ use File::Spec;
 use Bio::SeqIO;
 use Getopt::Long;
 
-
-
+my $cpus = 4;
 my $home = $ENV{'HOME'};
 my $jobdir = File::Spec->catfile($home,'jobs');
 my $input  = File::Spec->catfile($home,'input');
 my $outdir = File::Spec->catfile($home,'output');
 my $tmpdir = File::Spec->catfile($home, 'tmp');
-my $homebase = 'head3';
 my $qsize = 5000;
 my ($query,$dbin,$params,$exe);
 $exe = 'blastall'; # default
-my $formatdb = 'formatdb';
 my $prefix = 'blast';
-my $usescript = 0;
 $params = '-p blastp -e 1e-3 -m 8';
+my $uid;
 GetOptions(
 	   'i|q|query:s' => \$query,
 	   'd|db:s'      => \$dbin,
 	   'p|params:s'  => \$params,
 	   's|size:i'    => \$qsize,
-	   'usescript!'  => \$usescript,
 	   'e|exe:s'     => \$exe,
+           'id|uid:s' => \$uid,
+           'c|cpus:i'       => \$cpus,
 	   'indir|input:s'  => \$input,
 	   'o|out|outdir:s' => \$outdir,
 	   'j|job|jobdir:s' => \$jobdir,
@@ -50,11 +48,11 @@ for my $dir( $jobdir,$input,$outdir,$tmpdir ) {
 
 $query = File::Spec->rel2abs($query);
 my (undef,undef,$query_file) = File::Spec->splitpath($query);
-my $uid = $query_file;
+$uid = $query_file unless defined $uid;
 my $in = Bio::SeqIO->new(-file   => $query,
 			 -format => "fasta");
 
-my ($ct,$setct) = (0,0);
+my ($ct,$setct) = (0,1);
 my $infile = File::Spec->catfile($input,"$uid.$setct.fa");
 my $input_seqfh = Bio::SeqIO->new(-format => 'fasta',
 				  -file   => ">$infile");
@@ -77,20 +75,15 @@ while( my $s = $in->next_seq ) {
     }
 }
 
+my $jobfile = ">$jobdir/$prefix\_$uid.sh";
+open my $fh => ">$jobfile" || die $!;
+chmod(0700,$jobfile);
+print $fh ( "#!/bin/bash\n",
+	    '#PBS'." -N $uid\n",
+	    "#PBS -l nodes=1:ppn=$cpus\n",
+	    "source ~/.bash_profile\n",
+    );
+print $fh "$exe $params -a $cpus -i $input/$uid.\$PBSARRAY_ID.fa -d \"$db\" -o $outdir/$uid.\$PBSARRAY_ID.tab \n";
 
-for( my $i = 0; $i <= $setct; $i++ ) {
-    my $jobfile = File::Spec->catfile($jobdir,"$uid.$i.sh");
-    open my $fh => ">$jobfile" || die $!;
-    chmod(0700,$jobfile);
-    my $ofile = File::Spec->catfile($outdir,"$uid.$i.output");
-    my $out   = File::Spec->catfile($tmpdir,"$uid.$i.out");
-    my $ifile = $infiles[$i];#File::Spec->catfile($wkdir,$infilenames[$i]);
-    
-    print $fh ( "#!/bin/bash\n",
-		'#PBS'." -N $prefix.$i\n",
-		"source ~/.bash_profile\n",
-		);
 
-    print $fh "$exe $params -i $ifile -d \"$db\" -o $ofile\n";    
-
-}
+print "qsub -t 1-$setct%50 -j oe -o $outdir/$uid.BLAST.out $jobfile\n";
