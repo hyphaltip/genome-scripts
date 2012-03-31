@@ -44,18 +44,18 @@ if( $target ) {
     ($gff_chroms) = "$target.gff";
 
     if( -d $target ) {
-	$db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb3',
+	$db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb',
 					      -fa     => $fa,
 					      -dsn    => $target);
     } else {
-	$db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb3',
+	$db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb',
 					      -dsn    => $target,
 					      -fasta  => $fa,
 					      -create => 1);
     }
     open($fh => ">$gff_chroms") || die $!;
 } else {
-    $db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb3',
+    $db = Bio::DB::SeqFeature::Store->new(-adaptor=> 'berkeleydb',
 					  -dsn    => $tmpdir,
 					  -fasta  => $fa,
 					  -create => 1);
