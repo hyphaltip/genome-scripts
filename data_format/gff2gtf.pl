@@ -28,6 +28,7 @@ my %gene;
 my %seen;
 my %id2name;
 while(<>) {
+    next if /^#/;
     my @line = split(/\t/,$_);
     my $last = pop @line;
     chomp($last);
