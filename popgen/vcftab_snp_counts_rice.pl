@@ -26,9 +26,9 @@ while(<>) {
     for my $st ( @strains ) {
 	if( ! defined $strain{$st}->{$ref} ) {
 	    # doesn't have the NB ref allele	    
-	    $counts{'diff_NB-'.$st}++;# += 2; # since neither allele matches add 2
+	    $counts{'diff_ref-'.$st}++;# += 2; # since neither allele matches add 2
 	} else {
-	    $counts{'shared_NB-'.$st}++;# += $strain{$st}->{$ref};
+	    $counts{'shared_ref-'.$st}++;# += $strain{$st}->{$ref};
 	}	
     }
     for( my $j =0; $j < @strains; $j++ ) {
