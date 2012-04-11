@@ -13,6 +13,7 @@ my $solexaqual = 0;
 my $tmpdir = "$HOME/bigdata/tmp/stampy";
 
 #my $otheropts = '--substitutionrate=0.05';
+my $table = 'table.tab';
 
 GetOptions(
     'r|ref:s'    => \$reference_genome,
@@ -36,13 +37,20 @@ for my $fqfile ( @fqfiles ) {
     next unless ( $fname =~ /(\S+)\.fq$/ || $fname =~ /(\S+)\.fq\.gz$/);
     my $base = $1;
     $base =~ s/\.trim//;
+    $base =~ s/\.filter//;
+    my $smbase = $base;
+    $smbase =~ s/\.run\d+//;
+    
 #    $bdir =~ s/\/$//;
     open(my $jobfh => ">$jobdir/$base.$genome_pref.stampy.sh") || die $!;
-    print $jobfh "#PBS -N $base\n";
-    print $jobfh "cd $bdir\n";
+    print $jobfh "#!/bin/bash\n",
+    "#PBS -N $base.stampy -l nodes=1:ppn=4 -j oe \n",
+    "#PBS -d $bdir\n",
+    "module load stajichlab\n", "module load stampy\n"; 
+    
     if( $force ) {
 	unlink("$outdir/$base.$genome_pref.sam");
     }    
     print $jobfh "if [ ! -f $fqfile.recaldata ]; then\n stampy.py -g $reference_genome -h $reference_genome -R $fqfile \nfi\n";    
-    print $jobfh "if [ ! -f $outdir/$base.$genome_pref.sam ]; then\n stampy.py $opts -g $reference_genome -h $reference_genome --readgroup=ID:$base,SM:$base --baq --bwaoptions=\"-q10 $reference_genome\" --bwatmpdir=$tmpdir -M $fqfile -f sam -o $outdir/$base.$genome_pref.sam\nfi\n";
+    print $jobfh "if [ ! -f $outdir/$base.$genome_pref.sam ]; then\n stampy.py $opts -g $reference_genome -h $reference_genome --readgroup=ID:$base,SM:$smbase --baq --bwaoptions=\"-q10 $reference_genome\" --bwatmpdir=$tmpdir -M $fqfile -f sam -o $outdir/$base.$genome_pref.sam\nfi\n";
 }
