@@ -41,7 +41,7 @@ while (<$fh>) {
 		}
 	    }
 	    my $gene = Bio::SeqFeature::Generic->new(-primary_tag => 'CDS',
-		-location => $loc);	    
+		-location => $loc);
 	    $seq->add_SeqFeature($gene);
 	    $out->write_seq($seq);
 	    @location = ();			
@@ -52,6 +52,9 @@ while (<$fh>) {
 	    die("cannot find $seqid in the input file $genome\n");
 	}
 	$seq= Bio::Seq->new(-seq => $seqstr, -id  => $seqid);
+	$seq->add_SeqFeature(Bio::SeqFeature::Generic->new(-primary_tag => 'source',
+							   -start => 1,
+							   -end   => $dbh->length($seqid)));
     } else {
 	my @f = split;
 	if( @f != 4 && @f != 9 ) {
