@@ -42,8 +42,9 @@ while(<$gffh>) {
     next unless $line[2] eq 'CDS';
     my %group = map { split(/=/,$_,2) } split(/;/,pop @line);
     my $parent = $group{'Parent'};
+    my $altparent = $parent; # PASA changed procedure a bit
     $parent =~ s/LongOrf\.//;
-    if( exists $targets{$parent} ) {
+    if( exists $targets{$parent} || exists $targets{$altparent} ) {
 	my ($s,$e) = ($line[3],$line[4]);
 	if( $line[6] eq '-' ) {
 	    ($e,$s) = ($s,$e);
