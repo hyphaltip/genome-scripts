@@ -1,5 +1,7 @@
 #!/usr/bin/perl -w
 use strict;
+
+# DON't USE THIS, USE data_format/gtf2gff3_3level
 use Bio::SeqIO;
 use Getopt::Long;
 
@@ -17,8 +19,7 @@ for my $file ( @ARGV ) {
     my $stem = $file;
     $stem =~ s/\.g[ft]f//;
     open(my $fh=> $file) || die $!;
-    my (%genes);
-    my %lookup;
+    my (%genes,%lookup,%seqids);
     while(<$fh>) {
 	my ($seqid,$src,$type,$start,$end,$score,
 	    $strand,$frame,$lastcol) = split(/\t/,$_,9);
