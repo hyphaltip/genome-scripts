@@ -10,10 +10,10 @@ my $gatk_jarfile = '/opt/stajichlab/GATK/latest/GenomeAnalysisTK.jar';
 my $javamem ="-Xmx256g";
 my $tmpdir  = " -Djava.io.tmpdir=/dev/shm";
 my $force = 0;
-my $outname = 'allSNPS.raw.vcf';
-my $outindel = 'allINDELS.raw.vcf';
-my $outmetrics = 'allSNPs.info';
-my $outmetricsindel = 'allINDELS.info';
+my $outname = 'SNPs.raw.vcf';
+my $outindel = 'INDELs.raw.vcf';
+my $outmetrics = 'SNPs.info';
+my $outmetricsindel = 'INDELS.info';
 GetOptions(
     'r|ref:s'    => \$reference_genome,
     'jar|gatk:s' => \$gatk_jarfile,

@@ -41,7 +41,7 @@ for my $bam ( @ARGV ) {
 	    my $length = $read->query->length;
 	    my $ofh = $ofh{$length};
 	    unless( defined $ofh ) {
-		open($ofh => ">$dir/$base.$length.dat") || die $!;
+		open($ofh => ">$dir/$base.$length.dat") || die "$dir/$base.$length.dat: $!";
 		$ofh{$length} = $ofh;
 	    }
 	    print $ofh join("\t", $read->seq_id,$read->query->seq_id,

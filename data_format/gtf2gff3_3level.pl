@@ -144,11 +144,13 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 
 #	my $mrna_id = sprintf("%smRNA%06d",$prefix,$counts{'mRNA'}++);
 	my $mrna_id;
-	if( $transcript !~ /T\d+$/ ) {
-		$mrna_id = sprintf("%sT%d",$transcript,$counts{'mRNA'}->{$transcript}++);
+	if( $transcript =~ /T\d+$/ ) {
+	    $mrna_id = $transcript;
+	    $counts{'mRNA'}->{$transcript}++;
 	} else {
-		$mrna_id = sprintf("%s",$transcript);
+	    $mrna_id = sprintf("%sT%d",$transcript,$counts{'mRNA'}->{$transcript}++);
 	}
+
 	my @exons = grep { $_->[2] eq 'exon' } @$exonsref;
 	my @cds   = grep { $_->[2] eq 'CDS'  } @$exonsref;	
 	if( ! @cds ) {
@@ -200,7 +202,8 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	
 	my ($translation_start, $translation_stop);
 	
-	# sanity check the CDS - apparently the JGI has CDS which are not CDS as they come before or after the stop/start 
+	# sanity check the CDS - apparently the JGI has CDS which are not 
+	# CDS as they come before or after the stop/start 
 	# codon inappropriately
 	warn("CDS order is [strand=$strand_val]:\n") if $debug;
 	# order 5' -> 3' by multiplying start by strand
@@ -456,8 +459,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 			     '.',
 			     $strand,
 			     '.',
-			     sprintf("ID=%s_utr3%06d;Parent=%s",
-				     $prefix,
+			     sprintf("ID=utr3%06d;Parent=%s",
 				     $counts{'3utr'}++,
 				     $mrna_id)))];
 		}
