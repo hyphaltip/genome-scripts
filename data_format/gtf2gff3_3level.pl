@@ -211,7 +211,7 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 	for my $cds ( sort { $a->[3] * $strand_val <=>
 			     $b->[3] * $strand_val      } @cds ) {
 
-	    warn(join("\t", @$cds), "\n") if ( $debug );
+	    warn("CDS: ",join("\t", @$cds), "\n") if ( $debug );
 
 	    if ( ! defined $stop_codon && ! defined $start_codon) {
 		push @keepcds, $cds;
@@ -223,14 +223,16 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 		} elsif ( defined $start_codon && $cds->[4] < $start_codon->[3]  ) { #  CDS ends before the start codon began
 		    warn("dropping CDS before the start [plus]\n") if $debug;
 		} else {
+	  	    warn("keeping CDS [plus]\n") if $debug;
 		    push @keepcds, $cds;
 		}
 	    } elsif ( $strand_val < 0) { # minus strand
 		if (  defined $stop_codon && $stop_codon->[3] > $cds->[4] ) { # start codon comes after the CDS (codon start > CDS stop)
 		    warn("dropping CDS that comes after the stop [minus]\n") if $debug;
 		} elsif ( defined $start_codon && $cds->[3] > $start_codon->[4] ) { # CDS starts after start codon ends
-		    warn("dropping CDS after the start [minus]\n") if $debug;
+		    warn("dropping CDS that comes before the start [minus]\n") if $debug;
 		} else {
+	  	    warn("keeping CDS [minus]\n") if $debug;
 		    push @keepcds, $cds;
 		}
 	    } else {
@@ -247,11 +249,15 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 		warn("cds (stop) updated to ", $cds[-1]->[3], "..",$cds[-1]->[4],"\n") if $debug;
 		$translation_stop = $stop_codon->[4];
 	    } else {
-		warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
-		warn("cds[-] (stop) before to ", $cds[0]->[3], "..",$cds[0]->[4],"\n") if $debug;
-		$cds[-1]->[3] = $stop_codon->[3];
-		warn("cds[-] (stop) updated to ", $cds[0]->[3], "..",$cds[0]->[4],"\n") if $debug;
-		$translation_stop = $stop_codon->[3];
+		if( @cds ) {
+			warn("stop codon is ", join("\t", @{$stop_codon}), "\n") if $debug;
+			warn("cds[-] (stop) before to ", $cds[0]->[3], "..",$cds[0]->[4],"\n") if $debug;
+			$cds[-1]->[3] = $stop_codon->[3];
+			warn("cds[-] $mrna_id (stop) updated to ", $cds[0]->[3], "..",$cds[0]->[4],"\n") if $debug;
+			$translation_stop = $stop_codon->[3];
+		} else {
+			warn("no CDS to update stop codon for $mrna_id $gene_id\n");
+		}
 	    }
 	} else {
 	    $translation_stop = ($strand_val > 0) ? $cds[-1]->[4] : $cds[-1]->[3];
@@ -264,11 +270,15 @@ for my $gid ( sort { $genes{$a}->{chrom} cmp $genes{$b}->{chrom} ||
 		warn("cds (start) updated to ", $cds[0]->[3], "..",$cds[0]->[4],"\n") if $debug;
 		$translation_start = $start_codon->[3];
 	    } else {
-		warn("start codon is ", join("\t", @{$start_codon}), "\n") if $debug;
-		warn("cds[-] (start) before to ", $cds[-1]->[3],"..",$cds[-1]->[4],"\n") if $debug;
-		$cds[0]->[4] = $start_codon->[4];		
-		warn("cds[-] (start) updated to ", $cds[-1]->[3],"..",$cds[-1]->[4],"\n") if $debug;
-		$translation_start = $start_codon->[4];
+		if( @cds ) {
+			warn("start codon is ", join("\t", @{$start_codon}), "\n") if $debug;
+			warn("cds[-] (start) before to ", $cds[-1]->[3],"..",$cds[-1]->[4],"\n") if $debug;
+			$cds[0]->[4] = $start_codon->[4];		
+			warn("cds[-] (start) updated to ", $cds[-1]->[3],"..",$cds[-1]->[4],"\n") if $debug;
+			$translation_start = $start_codon->[4];
+		} else {
+			warn("no CDS to update start codon for $mrna_id $gene_id\n");
+                }
 	      }
 	  } else {
 	    $translation_start = ($strand_val > 0) ? $cds[0]->[3] : $cds[0]->[4];
