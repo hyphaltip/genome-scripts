@@ -6,12 +6,13 @@ use Env qw(HOME);
 my $jobdir = "$HOME/jobs";
 my $odir   = "$HOME/output";
 my $exe = 'hmmscan-3.0';
-my $dir;
+my $dir = '.';
 my $db = '/srv/projects/db/pfam/2011-12-09-Pfam26.0/Pfam-A.hmm';
 my $version = "Pfam_26";
 my $cpus = 3;
 GetOptions(
 	   'db:s'    => \$db,
+	   'o|odir:s' => \$odir,
 	   'version:s' => \$version,
 	   'd|dir:s' => \$dir);
 
