@@ -48,7 +48,8 @@ unless( defined $mercator_dir && -d $mercator_dir ) {
 }
 
 if( $output && $output ne '-' ) { 
-    open($output => ">$output" ) || die $!;
+    open(my $fh => ">$output" ) || die $!;
+    $output = $fh;
 } else {
     $output = \*STDOUT;
 }
