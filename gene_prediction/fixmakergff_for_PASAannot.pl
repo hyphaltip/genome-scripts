@@ -9,5 +9,25 @@ while(<>) {
  } elsif( s/:five_prime_utr;Parent=/:five_prime_utr:$utr3;Parent=/ ) {
   $utr5++;
  }
- print;
+ chomp;
+ my @row = split(/\t/,$_);
+ if( $row[2] eq 'exon' ) {
+     my %group = map { split(/=/,$_) } split(/;/,pop @row);
+     if( $group{'Parent'} =~ /,/ ) {
+	 my @isoforms = split(/,/,$group{'Parent'});
+	 my $count = 1;	 
+	 my $id = $group{'ID'};
+	 for my $p ( @isoforms ) {
+	     $group{'ID'} = $id .".".$count++;
+	     $group{'Parent'} = $p;	 
+	     print join("\t", @row, join(";", 
+					 map { sprintf("%s=%s",$_,$group{$_}) } 
+					 qw(ID Parent)),';'),"\n";
+	 }
+     } else {
+	 print $_,"\n";
+     }
+ } else {
+     print $_,"\n";   
+ }
 }
