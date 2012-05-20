@@ -13,6 +13,8 @@ my @expected;
 my $expected_file;
 GetOptions('d|dir:s'   => \$dir,
 	   'ext:s'     => \$ext,
+	   'if:s'       => \$iformat,
+	   'of:s'       => \$oformat,
 	   'expected:s' => \$expected_file,
 	   'o|out:s'   => \$outfile,
 	   );
