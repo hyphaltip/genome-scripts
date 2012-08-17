@@ -20,7 +20,7 @@ use Getopt::Long;
 my $pfamdir;
 my $pfamext = 'tab';
 my $hmmerversion = 3;
-my $evalue_cutoff = 0.01;
+my $evalue_cutoff = 0.001;
 GetOptions(
 	   'd|p|pfam:s'  => \$pfamdir,
 	   'ext:s'     => \$pfamext,

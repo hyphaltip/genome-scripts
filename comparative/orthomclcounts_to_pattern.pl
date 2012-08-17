@@ -90,6 +90,7 @@ pop @strains;
 my %patterns;
 my %fams;
 my %pat2name;
+my $counter = 0;
 while (<$fh>) {
   my @row= split(/\t/,$_);
   my ($family,@counts) = @row;
@@ -113,7 +114,10 @@ while (<$fh>) {
     push @pattern, ( $c > 0 )  ? 1 : 0;
     $i++;
   }
-  $pat2name{join(",",@pattern)} = join(",", @name_pattern);
+  if( ! exists $pat2name{join(",",@pattern)} ) { 
+     $pat2name{join(",",@pattern)} = $counter++;
+  }
+#join(",", @name_pattern);
   $patterns{join(",",@pattern)}++;
   push @{$fams{join(",",@pattern)}}, [sprintf("<a target=seqfam href=\"%s/%s.pep.fa\">%s</a>",$seqfolder,$family,$family), @counts, $desc];
 }

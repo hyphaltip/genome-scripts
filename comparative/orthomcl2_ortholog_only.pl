@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+cd #!/usr/bin/perl -w
 use strict;
 use Getopt::Long;
 use Bio::DB::Fasta;
