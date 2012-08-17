@@ -21,20 +21,25 @@ my ($name2,$record2) = get_record($fh2);
 while(! eof($fh1) || ! eof($fh2) ) {
     if( ! $name && $name2 ) {
 	print $ofh3 $record2;
+        ($name2,$record2) = get_record($fh2);
 	next;
     } elsif( $name && ! $name2 ) {
 	print $ofh3 $record;
+	($name,$record) = get_record($fh1);
     } elsif( ! $name && ! $name2 ) {
 	exit;
     }
+    my ($tile,$col,$row,@FC) = reverse split(/:/,$name); 
+    my ($tile_2,$col_2,$row_2,@FC2) = reverse split(/:/,$name2); 
+    #my ($FC,$row,$col,$tile) = split(/:/,$name);
+    #my ($FC_2,$row_2,$col_2,$tile_2) = split(/:/,$name2);
+    my $FC= join(":",@FC);
+    my $FC_2 = join(":",@FC2);
     
-    my ($FC,$row,$col,$tile) = split(/:/,$name);
-    my ($FC_2,$row_2,$col_2,$tile_2) = split(/:/,$name2);
-    
-    if( $FC_2 != $FC ) {
+    if( $FC_2 ne $FC ) {
 	die("Flowcells don't match, stopping\n");
     }
-
+	warn("$row, $row_2 | $col, $col_2 | $tile, $tile_2\n");
     if( $row == $row_2 &&
 	$col == $col_2 &&
 	$tile == $tile_2 ) {
@@ -44,12 +49,13 @@ while(! eof($fh1) || ! eof($fh2) ) {
 	($name2,$record2) = get_record($fh2);   
     }
     
-
     while( $row_2 > $row && $col_2 > $col && $tile_2 > $tile) {	
 	print $ofh3 $record;
 	($name,$record) = get_record($fh1);
-	($FC,$row,$col,$tile) = split(/:/,$name);
+	#($FC,$row,$col,$tile) = split(/:/,$name);
+	($tile,$col,$row,@FC) = reverse split(/:/,$name)
     }
+  last;
 }
 
 
@@ -65,9 +71,11 @@ sub get_record {
 	$name = $1;	
     } elsif( $record =~ /^@(\S+):[YN]/) {
 	$name = $1;	
+    } elsif( $record =~ /^@(\S+)\s+/ ){
+ 	$name = $1;
     } else{
 	warn("cannot parse name out for $record");
-	next;
+	exit;
     }
 
     for ( 0..2) {
