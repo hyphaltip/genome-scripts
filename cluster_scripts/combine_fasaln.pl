@@ -39,7 +39,7 @@ while( my ($id,$seq) = each %matrix ) {
 					    -seq => $seq));
 }
 
-my $out = Bio::AlignIO->new(-format => $oformat,
+my $out = Bio::AlignIO->new(-format => $oformat, -show_symbols => 0, -show_endblock=> 0,
 			    -file   => ">$outfile");
 $out->write_aln($bigaln);
 
