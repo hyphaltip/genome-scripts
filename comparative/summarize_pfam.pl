@@ -85,7 +85,7 @@ for my $file ( readdir(DIR) ) {
     while(<$fh>) {
 	next if /^\#/;
 	chomp;
-	my ($pfam_name, $pfam_acc, $tlen, $qname, $qacc, $qlen, $full_evalue,@rest) = split(/\s+/,$_,22);
+	my ($pfam_name, $pfam_acc, $tlen, $qname, $qacc, $qlen, $full_evalue,@rest) = split(/\s+/,$_,23);
 	my ($sp) = split(/\|/,$qname);
 	$domains{$pfam_name}->{$sp}++;
 	$domain_desc{$pfam_name} = pop @rest unless exists $domain_desc{$pfam_name};
@@ -106,7 +106,7 @@ for my $domain (map { $_->[1] }
 		map { [ (sum values %{$domains{$_}}), $_ ] }
 		keys %domains ) {
   print "<tr>\n ";
-  printf "<td><a target=pfam href=\"%s\">%s</a></td><td>%s</td>",$hmmurl,$domain,$domain,$domain_desc{$domain};
+  printf "<td><a target=pfam href=\"$hmmurl\">%s</a></td><td>%s</td>",$domain,$domain,$domain_desc{$domain};
   for my $col ( @sp ) {
    printf "  <td>%s</td>\n",exists $domains{$domain}->{$col} ? $domains{$domain}->{$col} : 0;
   }
