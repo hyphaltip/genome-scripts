@@ -6,7 +6,7 @@ my $file = shift || die "cannot run without input file";
 open(my $fh => $file) || die "cannot open $file\n";
 my %types;
 while (<$fh>) {
-  next if /^\#/;
+  next if /^\#/ || /^\s+$/;;
   my ($chrom,$src,$type,$start,$end,$score,$strand) = split;
   for my $pos ( $start..$end ) {
     $types{$chrom}->{$pos}->{$type}++;
