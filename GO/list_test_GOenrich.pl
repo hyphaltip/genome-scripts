@@ -34,7 +34,6 @@ GetOptions(
 die("no Association file provided!\n$usage\n") unless( defined $assocfile && 
 						       -f $assocfile);
 
-
 my $process   = GO::OntologyProvider::OboParser->new(ontologyFile => "$godir/gene_ontology.1_2.obo",  aspect       => 'P');
 my $component = GO::OntologyProvider::OboParser->new(ontologyFile => "$godir/gene_ontology.1_2.obo",  aspect	=> 'C');
 my $function  = GO::OntologyProvider::OboParser->new(ontologyFile => "$godir/gene_ontology.1_2.obo", aspect  => 'F');
