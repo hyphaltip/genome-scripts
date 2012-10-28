@@ -3,6 +3,7 @@ use strict;
 use Getopt::Long;
 use POSIX; # for strftime
 
+use GO::Parser;
 use Bio::DB::Taxonomy;
 use Env;
 
@@ -11,16 +12,17 @@ my %uncompress = ('bz2' => 'bzcat',
 		  );
 
 my $taxdb = Bio::DB::Taxonomy->new(-source => 'entrez');    
-my $srcPrefix = 'Berkeley';
-my $centerPrefix = 'TaylorLab';
+my $srcPrefix = 'UCR';
+my $centerPrefix = 'StajichLab';
 my $minE = 1;
-my $taxon;# bden = 109871;# coprinus= '246410';
+my $taxon;
 my $species;
 my $interprotab;
 my $outputfile;
 my $use_stdout = 0;
 my $strip = 1;
 my $debug = 0;
+my $gofile;
 GetOptions('ctr:s'       => \$centerPrefix,
 	   'src:s'       => \$srcPrefix,
 	   't|taxonid:s' => \$taxon,
@@ -28,6 +30,7 @@ GetOptions('ctr:s'       => \$centerPrefix,
 	   'm|minE:f'    => \$minE,
 	   'i|input:s'   => \$interprotab,
 	   'o|output:s'  => \$outputfile,
+	   'g|go:s'      => \$gofile,
 	   'stdout!'     => \$use_stdout,
 	   'strip!'      => \$strip,
 	   'v|debug'     => \$debug,
@@ -47,6 +50,17 @@ unless($interprotab && -f $interprotab ) {
     warn("must specify an interpro tab file either on the cmdline or with the -i option\n");
     exit;
 }
+
+unless( $gofile ) {
+    warn("Need a GO file (gene_ontology.obo)\n");
+    exit;
+}
+my $parser = GO::Parser->new({handler => 'obj',use_cache=>1});
+#$parser->handler->file("output.xml");
+$parser->parse($gofile);
+my $go_graph = $parser->handler->graph;
+warn("done parsing\n");
+
 
 my ($stem,$fh);
 if( $interprotab =~ /(\S+)\.(gz|bz2)$/) {
@@ -79,30 +93,14 @@ while(<$fh>) {
 	$go_info) = split(/\t/,$_);
     $gene =~ s/\.T\d+$//;
     if($go_info) {
-	$go_info = ", $go_info"; # fencepost!
-	my @go = grep { length } split(/\,\s+(Molecular Function|Biological Process|Cellular Component):/,$go_info);
-	while( @go ) {
-	    my $k  = shift @go;
-	    my $v  = shift @go;
-	    for ( $k,$v) {
-	        s/^\s+//;
-		s/\s+$//;
-	    }
-	    my ($goid,$code);
-	    if( $k =~ /^\S+\s+(\w)\S+/ ){ 
-		$code = uc $1;
-	    } else {
-		warn("Something is not right with $k => $v\n");
-		next;
-	    }	    
-
-	    if( $v =~ /(GO:\d+)/ ) {
-		$goid = $1;
-	    } else {
-		warn("No GOID in $v\n");
+	for my $goid ( split(/\|/,$go_info) ) {
+	    unless( $goid =~ /(GO:\d+)/ ) {
+		warn("No GOID in $goid\n");
 		next;
 	    }
 	    next if $seen{$gene}->{$goid}++;
+	    my $term = $go_graph->get_term($goid);
+	    my $code = $term->get_code_from_namespace;
 	    print $ofh join("\t", 
 			    $srcPrefix,
 			    $gene, $gene, '',
