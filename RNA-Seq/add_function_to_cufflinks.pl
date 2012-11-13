@@ -3,12 +3,13 @@ use strict;
 use warnings;
 use Getopt::Long;
 my $cutoff_evalue = 1e-3;
-my ($cufflinks,$function_fasta_file,$hmmer_file);
+my ($cufflinks,$function_fasta_file,$hmmer_file,$function_table_file);
 $cufflinks = 'isoform_exp.diff';
 my $filter;
 GetOptions(
     'c|cuff:s' => \$cufflinks,
     'f|function:s' => \$function_fasta_file,
+    't|table:s'    => \$function_table_file,
     'h|hmmer:s'    => \$hmmer_file,
     'e|evalue:s'   => \$cutoff_evalue,
     'filter!'      => \$filter,
@@ -37,9 +38,9 @@ if( $hmmer_file ) {
     push @header_extras, 'HMMER_DOMAINS';
 }
 if( $function_fasta_file ) {
-    open(my $fh =>"grep '^>' $function_fasta_file |") || die "cannot open $hmmer_file: $!";
+    open(my $fh =>"grep '^>' $function_fasta_file |") || die "cannot open $function_fasta_file: $!";
     while(<$fh>) {
-	if(/^>(\S+)\s+protein\s+Name:\"([^\"]+)\" AED/) {
+	if(/^>(\S+)\s+protein\s+Name:\"([^\"]+)\"\s+/) {
 	    $funct{$1}->{FUNCT_DESC} = $2;
 	} elsif(/^>(\S+)\s+(.+)/) {
 	    my ($gene,$desc) = ($1,$2);
@@ -52,6 +53,22 @@ if( $function_fasta_file ) {
     push @header_extras, 'FUNCT_DESC';
 }
 
+if( $function_table_file ) {
+    open(my $fh =>$function_table_file) || die "cannot open $function_table_file: $!";
+    while(<$fh>) {
+	next if( /^\#/ || /^GENE|NAME/);
+	my @cols = split(/\t/,$_);
+	my ($gene,$strains,$desc);
+	if( @cols == 2 ) {
+	    ($gene,$desc) = @cols;
+	} else {
+	    ($gene,$strains,$desc) = @cols;
+	}
+	$funct{$gene}->{FUNCT_DESC} = $desc;	    
+    }
+    push @header_extras, 'FUNCT_DESC';
+}
+
 open(my $fh => $cufflinks) || die "$cufflinks: $!";
 
 my $header = <$fh>;
@@ -59,7 +76,7 @@ my $i =0;
 my @header = split(/\s+/,$header);
 my %h = map { $_ => $i++ } @header;
 if( ! exists $h{'test_id'} ) {
-    die("unexpected header, cannot find gene_id\n");
+    die("unexpected header, cannot find test_id\n");
 }
 
 print join("\t", @header, @header_extras), "\n";
