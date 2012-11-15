@@ -4,6 +4,7 @@ use Getopt::Long;
 use File::Spec;
 use List::Util qw(sum);
 use Bio::DB::Sam;
+use Bio::Perl qw(revcom_as_string);
 
 # this expects BAM files as the ARGV
 my %expected_bases = map { $_ => 1 } qw(C A G T);
@@ -39,9 +40,9 @@ if( $features ) {
 open(my $R => ">$dir/summary_shortread_barplot.R" ) || die $!;
 for my $file ( @ARGV ) {
     my $base = $file;
-    $base =~ s/\.bam$//;
+    $base =~ s/\.bam$//g;
     print $R "pdf(\"$base.pdf\")\n";
-    $base =~ s/\.bam$//;
+
     my $db = Bio::DB::Sam->new(-bam => $file,
 			       -fasta=>$genome);
     my %counts;    
@@ -60,7 +61,8 @@ for my $file ( @ARGV ) {
 	    
 	    while (my $align = $iterator->next_seq) { 			    
 		my $seq = $align->query->dna;
-		my $strand = $align->strand < 0 ? 'minus' : 'plus';
+		my $strand = ($align->strand < 0) ? 'minus' : 'plus';
+		$seq = revcom_as_string($seq) if $strand eq 'minus';
 		my %f;
 		for ( split('',$seq) ) { $f{$_}++ }
 		next if keys %f <= 2; # drop those AAA or TTT runs
@@ -79,8 +81,10 @@ for my $file ( @ARGV ) {
 	    my $iterator     = $segment->features(-iterator=>1);
 	    
 	    while (my $align = $iterator->next_seq) { 			    
-		my $seq = $align->query->dna;		
-		my $strand = $align->strand < 0 ? 'minus' : 'plus';
+		my $seq = $align->query->dna;	
+		my $strand = ($align->strand < 0) ? 'minus' : 'plus';
+		$seq = revcom_as_string($seq) if $strand eq 'minus';
+
 		my %f;
 		for ( split('',$seq) ) { $f{$_}++ }
 		next if keys %f <= 2; # drop those AAA or TTT runs
@@ -89,10 +93,8 @@ for my $file ( @ARGV ) {
 		my $five_base = uc substr($seq,0,1); # get 5' base
 		my $three_base = uc substr($seq,-1,1); # get 3' base
 		next unless $expected_bases{$five_base};
-#		$counts{$length}->{5}->{$five_base}++;
 		$counts{$length}->{$strand}->{5}->{$five_base}++;
 		next unless $expected_bases{$three_base};
-#		$counts{$length}->{3}->{$three_base}++;
 		$counts{$length}->{$strand}->{3}->{$three_base}++;
 	    }
 	}
@@ -100,19 +102,19 @@ for my $file ( @ARGV ) {
     }
     for my $strand ( qw(plus minus) ) {
 	for my $readend ( 5,3) {
-	    open(my $rpt => ">$dir/$base.$readend\_summary_sizes_plus" ) || die $!;
-	    open(my $rptpct => ">$dir/$base.$readend\_summary_sizes.percent_plus" ) || die $!;
-	    print $R "size <- read.table(\"$base.$readend\_summary_sizes_plus\",header=T,sep=\"\\t\",row.names=1)\n";
+	    open(my $rpt => ">$dir/$base.$readend\_summary_sizes_$strand" ) || die $!;
+	    open(my $rptpct => ">$dir/$base.$readend\_summary_sizes.percent_$strand" ) || die $!;
+	    print $R "size <- read.table(\"$base.$readend\_summary_sizes_$strand\",header=T,sep=\"\\t\",row.names=1)\n";
 	    print $R "barplot(t(size),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size - $readend' base $strand strand\",",
 	    "legend=T,col=c(\"red\",\"blue\",\"green\",\"orange\"),beside=T)\n";
-	    print $R "sizep <- read.table(\"$base.$readend\_summary_sizes.percent_plus\",header=T,sep=\"\\t\",row.names=1)\n";
+	    print $R "sizep <- read.table(\"$base.$readend\_summary_sizes.percent_$strand\",header=T,sep=\"\\t\",row.names=1)\n";
 	    
 # add in total percentage plots
 	    print $R "barplot(t(sizep),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size (percent) - $readend' base $strand strand\",space=0.1,cex.axis=0.8,las=1,cex=0.8,legend=T,col=rainbow(5,start=.1, end=.91),beside=F)\n";
 	    
 	    my @lengths = sort { $a <=> $b } keys %counts;    		
 	    
-    print $rpt join("\t", qw(LENGTH),  @bases),"\n";
+	    print $rpt join("\t", qw(LENGTH),  @bases),"\n";
 	    print $rptpct join("\t", qw(LENGTH), @bases),"\n";
 	    for my $c ( @lengths ) {
 		print $rpt join("\t", $c, map { $counts{$c}->{$strand}->{$readend}->{$_} || 0 } @bases), "\n";
