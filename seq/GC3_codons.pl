@@ -37,7 +37,7 @@ my %gc;
 while (my $seq = $in->next_seq ) {
   my $str = $seq->seq;
   if ( ($seq->length % 3) != 0 ) {
-    warn($seq->id, " coding sqeuence is not multiple of 3 ", $seq->length, "\n");
+    warn($seq->id, " coding sequence is not multiple of 3 ", $seq->length, "\n");
     next;
   } else {
 #    warn($seq->id, " ok\n");
@@ -55,12 +55,12 @@ while (my $seq = $in->next_seq ) {
   next if ! keys %gene_count;
   if ( $pergene ) {
     printf "%s\t%.3f\n",$seq->id, 
-      ( $gene_count{'G'} || 0 + $gene_count{'C'} || 0 ) / 
+      ( ($gene_count{'G'} || 0) + ($gene_count{'C'} || 0) ) / 
 	sum(map { $gene_count{$_} || 0} @bases);
   }
 }
 
-my $gc = $gc{'G'} || 0  + $gc{'C'} || 0;
+my $gc = ($gc{'G'} || 0)  + ($gc{'C'} || 0);
 my $total = sum ( map { $gc{$_} } @bases);
 printf "%.3f %% (%s=%d,%s=%d,%s=%d,%s=%d)\n", $gc / $total,
   map { $_,$gc{$_} } @bases;
