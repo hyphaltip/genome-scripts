@@ -72,7 +72,7 @@ while(<$fh>) {
 	my $iterator = $segment->features(-iterator => 1);
 
 	while (my $aln = $iterator->next_seq) {			
-	    my $len = $aln->length;
+	    my $len = length $aln->query->dna;#length;
 	    next if $len < $minsize || $len > $maxsize;
 		
 	    my $dna = $aln->query->dna ;
@@ -107,7 +107,7 @@ if( $compute_nofeature ) {
 
 		my $iterator = $segment->features(-iterator => 1);	    
 		while (my $aln = $iterator->next_seq) {			
-		    my $len = $aln->length;
+		    my $len = length $aln->query->dna; #$aln->length;
 		    next if $len < $minsize || $len > $maxsize;
 
 		    my $dna = $aln->query->dna ;
