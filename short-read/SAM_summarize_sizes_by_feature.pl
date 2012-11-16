@@ -4,6 +4,7 @@ use Bio::DB::Sam;
 use Getopt::Long;
 use File::Spec;
 use List::Util qw(sum);
+use Bio::Perl qw(revcom_as_string);
 my %expected_bases = map { $_ => 1 } qw(C A G T);
 my @bases   = sort keys %expected_bases;
 
@@ -76,6 +77,7 @@ while(<$fh>) {
 	    next if $len < $minsize || $len > $maxsize;
 		
 	    my $dna = $aln->query->dna ;
+	    $dna = revcom_as_string($dna) if $aln->strand < 0;
 	    my %f;
 	    for ( split('',$dna) ) { $f{$_}++ }
 	    next if keys %f <= 2; # drop those AAA or TTT runs
@@ -111,6 +113,7 @@ if( $compute_nofeature ) {
 		    next if $len < $minsize || $len > $maxsize;
 
 		    my $dna = $aln->query->dna ;
+	    	    $dna = revcom_as_string($dna) if $aln->strand < 0;
 		    my %f;
 		    for ( split('',$dna) ) { $f{$_}++ }
 		    next if keys %f <= 2; # drop those AAA or TTT runs
