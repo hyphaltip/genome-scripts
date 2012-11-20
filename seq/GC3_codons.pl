@@ -56,11 +56,11 @@ while (my $seq = $in->next_seq ) {
   if ( $pergene ) {
     printf "%s\t%.3f\n",$seq->id, 
       ( ($gene_count{'G'} || 0) + ($gene_count{'C'} || 0) ) / 
-	sum(map { $gene_count{$_} || 0} @bases);
+	sum(map { $gene_count{$_} || 0} @bases) / 3);
   }
 }
 
 my $gc = ($gc{'G'} || 0)  + ($gc{'C'} || 0);
-my $total = sum ( map { $gc{$_} } @bases);
+my $total = sum ( map { $gc{$_} } @bases) / 3;
 printf "%.3f %% (%s=%d,%s=%d,%s=%d,%s=%d)\n", $gc / $total,
-  map { $_,$gc{$_} } @bases;
+  map { $_,$gc{$_} } @bases ;
