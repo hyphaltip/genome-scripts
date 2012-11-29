@@ -12,6 +12,7 @@ my $pfamext = 'tab';
 my $hmmerversion = 3;
 my $evalue_cutoff = 0.01;
 my @collapse;
+my $collapse_file;
 GetOptions(
 	   'd|p|pfam:s'  => \$pfamdir,
 	   'ext:s'     => \$pfamext,
@@ -20,12 +21,21 @@ GetOptions(
 	   'i|input:s'  => \$input,
 	   'o|output:s' => \$odir,
 	   'c|collapse:s{2}' => \@collapse,
+	   'cf|collfile:s' => \$collapse_file,
 	   );
 my %collapse = @collapse;
 
 $input ||= shift @ARGV;
 $odir ||= $input."-profile";
 
+if( $collapse_file ) {
+  open(my $cfile => $collapse_file) || die $!;
+  while(<$cfile>) {
+   next if /^\#/ || /^\s+$/;
+   my ($pref,$match) = split;
+   $collapse{$pref} = $match;
+  }
+}
 die "must provide a folder with pfam table data (either domtblout or hmmer2table output\n" unless $pfamdir && -d $pfamdir;
 my %pfam;
 opendir(PFAM, $pfamdir) || die "cannot open $pfamdir: $!";
