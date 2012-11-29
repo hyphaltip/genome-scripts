@@ -30,7 +30,7 @@ for my $f ( readdir(DIR) ) {
 	next if /^\s+$/;
 	my ($qname,$hname, $percent_id, $hsp_len, $mismatches,$gapsm,
 	    $qstart,$qend,$hstart,$hend,$evalue,$bits) = split;
-	next if $evalue > $cutoff_evalue;
+	next if $evalue > $cutoff_evalue || $qname eq $hname;
 	my ($qsp,$qseq) = split('_',$qname,2);
 	my ($hsp,$hseq) = split('_',$hname,2);
 	$hsp_list{$hsp}++;
