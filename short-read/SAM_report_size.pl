@@ -65,7 +65,7 @@ for my $file ( @ARGV ) {
 		my %f;
 		for ( split('',$seq) ) { $f{$_}++ }
 		next if keys %f <= 2; # drop those AAA or TTT runs
-		my $length = $align->query->length;
+		my $length = length($seq); #$align->query->length;
 		next if $length < $minsize || $length > $maxsize;
 		my $five_base = uc substr($seq,0,1); # get 5' base
 		my $three_base = uc substr($seq,-1,1); # get 3' base
@@ -85,7 +85,7 @@ for my $file ( @ARGV ) {
 		my %f;
 		for ( split('',$seq) ) { $f{$_}++ }
 		next if keys %f <= 2; # drop those AAA or TTT runs
-		my $length = $align->query->length;
+		my $length = length($seq); # $align->query->length;
 		next if $length < $minsize || $length > $maxsize;
 		my $five_base = uc substr($seq,0,1); # get 5' base
 		my $three_base = uc substr($seq,-1,1); # get 3' base
