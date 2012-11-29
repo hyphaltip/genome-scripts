@@ -14,7 +14,6 @@ my %uncompress = ('bz2' => 'bzcat',
 my $taxdb = Bio::DB::Taxonomy->new(-source => 'entrez');    
 my $srcPrefix = 'UCR';
 my $centerPrefix = 'StajichLab';
-my $minE = 1;
 my $taxon;
 my $species;
 my $interprotab;
@@ -27,7 +26,6 @@ GetOptions('ctr:s'       => \$centerPrefix,
 	   'src:s'       => \$srcPrefix,
 	   't|taxonid:s' => \$taxon,
 	   's|species:s' => \$species,
-	   'm|minE:f'    => \$minE,
 	   'i|input:s'   => \$interprotab,
 	   'o|output:s'  => \$outputfile,
 	   'g|go:s'      => \$gofile,
