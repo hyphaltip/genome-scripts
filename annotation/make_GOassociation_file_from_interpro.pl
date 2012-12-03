@@ -98,7 +98,12 @@ while(<$fh>) {
 	    }
 	    next if $seen{$gene}->{$goid}++;
 	    my $term = $go_graph->get_term($goid);
-	    my $code = $term->get_code_from_namespace;
+	    my $code;
+	    if( ! $term ) {
+	     $code = 'U';
+            } else {
+	     $code = $term->get_code_from_namespace;
+	    }
 	    print $ofh join("\t", 
 			    $srcPrefix,
 			    $gene, $gene, '',
