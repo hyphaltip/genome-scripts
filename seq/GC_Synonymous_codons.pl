@@ -59,18 +59,20 @@ my %gc;
 while (my $seq = $in->next_seq ) {
   my $str = $seq->seq;
   if ( ($seq->length % 3) != 0 ) {
-    warn($seq->id, " coding sqeuence is not multiple of 3 ", $seq->length, "\n");
+    warn($seq->id, " coding sequence is not multiple of 3 ", $seq->length, "\n");
     next;
   } else {
-#    warn($seq->id, " ok\n");
+    #warn($seq->id, " ok " , $str,"\n");
   }
   my %gene_count;
   while ( $str )  {
     my $codon = substr($str,0,3,'');
     if ( $degenerate{$codon} ) {
-      #     warn("$synon for $codon\n");
+      warn("$codon is deg\n");
       $gc{$codon}++;
       $gene_count{$codon}++;
+    } else {
+	print "$codon not degenerate\n";
     }
   }
   next if ! keys %gene_count;
@@ -81,8 +83,8 @@ while (my $seq = $in->next_seq ) {
   }
 }
 
-my $gc = $gc{'G'} || 0  + $gc{'C'} || 0;
-my $total = sum ( map { $gc{$_} } @bases);
+my $gc = ($gc{'G'} || 0)  + ($gc{'C'} || 0);
+my $total = sum ( map { $gc{$_} || 0} @bases);
 
 printf "%.3f %% (%s=%d,%s=%d,%s=%d,%s=%d)\n", $gc / $total,
   map { $_,$gc{$_} } @bases;
