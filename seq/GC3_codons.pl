@@ -10,7 +10,7 @@ my $pergene;
 GetOptions('g|pergene!' => \$pergene);
 
 if( $pergene ) {
- print join("\t",qw(SEQ GC G C)), "\n";
+ print join("\t",qw(SEQ GC3 G3 C3 GC_ALL G_ALL)), "\n";
 }
 my $infile = shift;
 
