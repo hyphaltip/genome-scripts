@@ -85,7 +85,7 @@ my $date = strftime("%d-%b-%Y", localtime);
 while(<$fh>) {
     # columns from IPRscan are
     chomp;
-    my ($gene,$crc64,$length,$analyis_method,
+    my ($gene,$crc64,$length,$analysis_method,
 	$hit_dbid,$hitdesc,$qstart,$qend,$evalue,$hit_status,
 	$date_run,$iprdomain,$iprdesc,
 	$go_info) = split(/\t/,$_);
@@ -104,11 +104,28 @@ while(<$fh>) {
             } else {
 	     $code = $term->get_code_from_namespace;
 	    }
+	    #1. DB
+	    #2. DB_Object_ID
+	    #3. DB_Object_Symbol
+	    #4. Qualifier
+	    #5. GO ID
+	    #6. DB:Reference
+	    #7. Evidence The evidence code for the GO annotation; one of IMP, IGI, IPI, ISS,
+	    #    ISA, ISM, ISO, EXP, IDA, IEP, IEA, TAS, NAS, ND, IC, RCA
+	    #8. With (or) fFrom
+	    #9. Aspect (process, function, cellular location)
+	    #10. DB_Object_Name
+	    #11. DB_Object_Syn
+	    #12. DB_Object_Type
+	    #13. taxon
+	    #14. Date
+	    #15. Assigned by
+
 	    print $ofh join("\t", 
 			    $srcPrefix,
 			    $gene, $gene, '',
-			    $goid, $analyis_method, 'ISS', '', $code,
-			    '','', 'protein', "taxon:$taxon",
+			    $goid, "$analysis_method:$hit_dbid", 'ISS', '', $code,
+			    $gene,$gene, 'gene', "taxon:$taxon",
 			    $date,
 			    $centerPrefix),"\n";
 	}
