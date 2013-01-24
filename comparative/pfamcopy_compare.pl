@@ -4,13 +4,32 @@ use List::Util qw(sum);
 use Getopt::Long;
 use Bio::DB::Fasta;
 use Bio::SeqIO;
+
+=head1 NAME 
+
+pfamcopy_compare - compare Pfam copy number counts for a collection of species
+
+=head1 USAGE
+
+pfamcopy_compare.pl pfam_outputdir
+
+=head1 DESCRIPTION
+
+=head1 AUTHOR
+
+Jason Stajich E<lt>jason.stajich[at]ucr.eduE<gt>
+
+=cut
+
 my $ext = '\.domtbl\.tab';
 my $cutoff = 1e-4;
 my $pfam_seqs_out = 'pfam_seq_out';
 my $dbdir;
+my $percent;
 GetOptions('c|cutoff:s' => \$cutoff,
 	   'e|ext:s'    => \$ext,
 	   'db:s' => \$dbdir,
+	   'p|percentage!' => \$percent,
 	   'o|out:s'=> \$pfam_seqs_out);
 
 my $dir = shift || 'pfam';
@@ -21,7 +40,7 @@ if( $dbdir && (-f $dbdir || -d $dbdir) ) {
     mkdir($pfam_seqs_out);
 }
 opendir(DIR,$dir) || die "$dir: $!";
-my (%domains,%spnames,%domain_seqs);
+my (%domains,%spnames,%domain_seqs,%domains_genes,%spgenes,%genes);
 for my $file ( readdir(DIR) ) {
     if( $file =~ /(\S+)$ext/ ) {
 	my $sp = $1;
@@ -38,20 +57,42 @@ for my $file ( readdir(DIR) ) {
 		$accuracy, 
 		$description) = split(/\s+/,$_,24);
 	    next if $i_evalue > $cutoff;
-	    $domains{$domain}->{$sp}++;	    
+	    if( $percent ) {
+		$domains{$domain}->{$sp}->{$gene}++;
+	    } else {
+		$domains{$domain}->{$sp}++;	
+	    }
+
+	    $genes{$sp}->{$gene}++;
 	    push @{$domain_seqs{$domain}}, $gene if $dbh;
 	}
     }
 }
 my @sp = sort keys %spnames;
-print join("\t",
-	   qw(DOMAIN TOTAL),
-	   @sp),"\n";
+for my $sp ( @sp ) {
+    $spgenes{$sp} = scalar keys %{$genes{$sp}};
+}
 
-for my $dom ( sort { $b->[1] <=> $a->[1] } 
-	      map { [$_,sum(values %{$domains{$_}}), ] } 
-	      keys %domains ) {
-    if( $dbh ) {
+if( $percent ) {
+    print join("\t",
+	       qw(DOMAIN),
+	       @sp),"\n";
+} else {
+    print join("\t",
+	       qw(DOMAIN TOTAL),
+	       @sp),"\n";
+}
+
+my @dom_order;
+if( $percent ) {
+    @dom_order = map { [$_,$_] } sort keys %domains;
+} else {
+    @dom_order = sort { $b->[1] <=> $a->[1] } 
+    map {  [$_,sum(values %{$domains{$_}}), ] }
+    keys %domains;
+}	     
+for my $dom ( @dom_order ) {
+    if( $dbh && ! $percent ) {
 	my $domname = $dom->[0];
 	my $out = Bio::SeqIO->new(-format => 'fasta',
 				  -file   => ">$pfam_seqs_out/$domname.fa");
@@ -65,6 +106,14 @@ for my $dom ( sort { $b->[1] <=> $a->[1] }
 	    }
 	}
     }
-    print join("\t", $dom->[0], $dom->[1],
-	       map { $domains{$dom->[0]}->{$_} || 0 } @sp), "\n";    
+    if( $percent ) {
+	print join("\t", $dom->[0], 
+		   map {my $ct = scalar keys %{$domains{$dom->[0]}->{$_} || {}};
+			sprintf("%.2f", 100 * ($ct / $spgenes{$_}));
+		   } @sp), "\n";
+ 
+    } else {
+	print join("\t", $dom->[0], $dom->[1],
+		   map { $domains{$dom->[0]}->{$_} || 0 } @sp), "\n";    
+    }
 }
