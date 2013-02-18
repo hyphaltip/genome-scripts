@@ -34,4 +34,5 @@ while(<$fh>) {
        $seqio->write_seq($seq);
      }
      #$seqio->write_seq( map { $dbh->get_Seq_by_acc($_) } @orthologs);
+    }
 }
