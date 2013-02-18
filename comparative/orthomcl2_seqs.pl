@@ -7,11 +7,13 @@ use Bio::DB::Fasta;
 
 my ($input,$db,$odir);
 my $ext = 'pep';
+my $min_size = 1;
 GetOptions(
 	   'i|input:s'  => \$input,
 	   'o|output:s' => \$odir,
 	   'd|db:s'     => \$db,
            'ext:s'      => \$ext,
+	   'min:i'      => \$min_size, 
 	   );
 
 $input ||= shift @ARGV;
@@ -23,6 +25,7 @@ mkdir($odir) unless -d $odir;
 while(<$fh>) {   
     my ($group,@orthologs) = split;    
     $group =~ s/://;
+    next if( @orthologs < $min_size );
     my %count;
     my %domains; 
     my $seqio =Bio::SeqIO->new(-format => 'fasta', 
