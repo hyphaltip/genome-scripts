@@ -6,11 +6,12 @@ use Bio::SeqIO;
 use Bio::DB::Fasta;
 
 my ($input,$db,$odir);
-
+my $ext = 'pep';
 GetOptions(
 	   'i|input:s'  => \$input,
 	   'o|output:s' => \$odir,
 	   'd|db:s'     => \$db,
+           'ext:s'      => \$ext,
 	   );
 
 $input ||= shift @ARGV;
@@ -25,7 +26,12 @@ while(<$fh>) {
     my %count;
     my %domains; 
     my $seqio =Bio::SeqIO->new(-format => 'fasta', 
-			       -file => ">$odir/$group.pep.fa");
-
-    $seqio->write_seq( map { $dbh->get_Seq_by_acc($_) } @orthologs);
+			       -file => ">$odir/$group.$ext.fa");
+    for my $orth (@orthologs ) {
+     my $seq = $dbh->get_Seq_by_acc($orth);
+     if( ! $seq ) { warn("cannot lookup $orth in the DB!"); }
+     else { 
+       $seqio->write_seq($seq);
+     }
+     #$seqio->write_seq( map { $dbh->get_Seq_by_acc($_) } @orthologs);
 }
