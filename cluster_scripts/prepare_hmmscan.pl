@@ -28,6 +28,7 @@ for my $file ( readdir(DIR) ) {
     next if( -f "$odir/$stem.domtbl.tab" && ! $force);
     open(JOB, ">$jobdir/$stem.pfamscan.sh") || die $!;
     print JOB "#PBS -l nodes=1:ppn=$cpus\n";
+    print JOB "module load hmmer/3.0\n";
     print JOB "$exe --cut_tc --cpu $cpus --tblout $odir/$stem.tbl --domtblout $odir/$stem.domtbl.tab $db $dir/$file > $odir/$stem.$version.hmmscan\n";
     close(JOB);
 }
