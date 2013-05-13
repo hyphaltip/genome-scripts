@@ -8,9 +8,11 @@ use Bio::DB::Fasta;
 my ($input,$db,$odir);
 my $ext = 'pep';
 my $min_size = 1;
+my $orthomcl = 1;
 GetOptions(
 	   'i|input:s'  => \$input,
 	   'o|output:s' => \$odir,
+           'orthomcl!'  => \$orthomcl,
 	   'd|db:s'     => \$db,
            'ext:s'      => \$ext,
 	   'min:i'      => \$min_size, 
@@ -22,9 +24,16 @@ $odir ||= $input.'-seqs';
 my $dbh = Bio::DB::Fasta->new($db);
 open(my $fh => $input) || die "cannot open $input: $!\n";
 mkdir($odir) unless -d $odir;
+my $groupct = 1;
 while(<$fh>) {   
-    my ($group,@orthologs) = split;    
-    $group =~ s/://;
+    my ($group,@orthologs);
+    if( $orthomcl ) {
+	($group,@orthologs) = split;    
+	$group =~ s/://;
+    } else {
+	@orthologs = split;
+	$group = sprintf("FAM_%05d",$groupct++);
+    }
     next if( @orthologs < $min_size );
     my %count;
     my %domains; 
