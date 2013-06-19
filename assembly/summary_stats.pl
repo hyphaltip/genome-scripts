@@ -1,9 +1,14 @@
 #!/usr/bin/perl -w
 use strict;
 use Bio::SeqIO;
+use Getopt::Long;
 my $nlen = 50;
+
+GetOptions(
+	'n|nlen:s' => \$nlen,
+	);
 my $in = Bio::SeqIO->new(-format => 'fasta',
-						 -file   => shift @ARGV);
+	 	         -file   => shift @ARGV);
 my @lengths;
 my $total_length = 0;
 my $n_total;
