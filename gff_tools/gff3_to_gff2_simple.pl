@@ -10,7 +10,7 @@ while( <> ) {
     my @row = split(/\t/,$_);
     my %rest = map { split(/=/,$_) } split(/;/,pop @row);
     
-    if( $row[2] eq 'CDS' ) {
+    if( $row[2] eq 'CDS' || $row[2] eq 'cds' ) {
 	if( exists $rest{'Parent'} ) {
 	    my $group;
 	    if( exists $names{$rest{'Parent'}} ){ 
