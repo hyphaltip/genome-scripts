@@ -42,7 +42,7 @@ while(<>) {
 	if( $last =~ /Name=([^;]+);?/ ) {
 	    $name = $1;
 	}
-#	warn("id is $id\n");
+	#warn("id is $id\n");
 	if( defined $id && defined $name ) {
 	    $id2name{uc $line[2]}->{$id} = $name; # map the id (typically just a numeric) to the name (string)
 	    if( uc($line[2]) eq 'MRNA' && 
@@ -54,7 +54,7 @@ while(<>) {
 #	warn($_);
     }
     next unless uc $line[2] eq 'CDS' || $line[2] eq 'exon';
-    if( $last =~ /(Name|Transcript|GenePrediction)\s+(\S+)/ ) {
+    if( $last =~ /(ID|Name|Transcript|GenePrediction)\s+(\S+)/ ) {
 	($group) = $2;
     } elsif( $last =~ /Parent=([^;]+);?/) { # gff3
 	$group = $1;
@@ -82,15 +82,21 @@ while(<>) {
 	warn("cannot find gene group for $group\n");
 	die;
     }
-    if( ! $seen{$gid}++ && $line[2] eq 'CDS') {
+    if( ! $seen{$gid}++ && uc($line[2]) eq 'CDS') {
 	push @order, $gid;
+	warn("adding $gid\n");
     }
+	# warn("adding $gid\n");
     push @{$gene{$gid}}, [ @line, 
 			   sprintf('gene_id "%s"; transcript_id "%s";',
 #			       'transcript_id "%s"; gene_id "%s";',
 				   $gid, $tid)];
 }
+if( ! @order ) {
+	@order = sort keys %gene;
+}
 for my $gene ( @order ) {
+	warn("gene is $gene\n");
     my @ordered_cds = ( map { $_->[1] }
 			sort { $a->[0] <=> $b->[0]}
 			map { [$_->[3] * ($_->[6] eq '-' ? -1 : 1), $_] }
@@ -190,6 +196,4 @@ for my $gene ( @order ) {
     for my $cds ( @ordered_cds ) {
 	print join("\t", @$cds), "\n";
     }
-
-
 }
