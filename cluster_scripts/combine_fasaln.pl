@@ -1,1 +1,1 @@
-/home_stajichlab/jstajich/src/genome-scripts/phylogenetics/combine_fasaln.pl
+/rhome/jstajich/src/genome-scripts/phylogenetics/combine_fasaln.pl
