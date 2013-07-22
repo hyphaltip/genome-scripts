@@ -11,7 +11,17 @@ my $cds = 1;
 my $utr3 = 1;
 my $utr5 = 1;
 while(<>) { 
+
+ if( /^##FASTA/ || /^>/ ) {
+   last;
+ } elsif( /^\#/) {
+   print $_;
+   next;
+ }
  my @line = split(/\t/,$_);
+ if( ! defined $line[1] ) {
+  die("line was $_");
+ }
  next if $onlymaker && $line[1] ne 'maker';
  if( s/:cds;Parent=/:cds:$cds;Parent=/ ) {
    $cds++; 
