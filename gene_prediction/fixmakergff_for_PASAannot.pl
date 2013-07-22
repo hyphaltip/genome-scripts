@@ -1,7 +1,18 @@
+use strict;
+use warnings;
+use Getopt::Long;
+my $onlymaker = 1;
+
+GetOptions(
+	'onlymaker!' => \$onlymaker,
+	);
+
 my $cds = 1;
 my $utr3 = 1;
 my $utr5 = 1;
-while(<>) {
+while(<>) { 
+ my @line = split(/\t/,$_);
+ next if $onlymaker && $line[1] ne 'maker';
  if( s/:cds;Parent=/:cds:$cds;Parent=/ ) {
    $cds++; 
  } elsif( s/:three_prime_utr;Parent=/:three_prime_utr:$utr3;Parent=/ ) {
