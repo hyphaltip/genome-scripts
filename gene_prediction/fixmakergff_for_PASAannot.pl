@@ -34,6 +34,9 @@ while(<>) {
  my @row = split(/\t/,$_);
  if( $row[2] eq 'exon' ) {
      my %group = map { split(/=/,$_) } split(/;/,pop @row);
+     if( ! defined $group{'Parent'} ) { 
+	die($_);
+     }
      if( $group{'Parent'} =~ /,/ ) {
 	 my @isoforms = split(/,/,$group{'Parent'});
 	 my $count = 1;	 
