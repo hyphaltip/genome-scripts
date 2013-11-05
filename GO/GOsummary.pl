@@ -4,17 +4,13 @@ use List::Util qw(sum);
 
 =head1 NAME
 
-map_GOset_to_GOslim.pl - map a datafile of GO terms into the appropriate GO slim categorizes
+GOSummary - summarize GO categories
 
 =head1 USAGE
 
-map_GOset_to_GOslim.pl -i organism.go -db gene_ontology.obo > organism.go_slim
+GOSummary -i organism.go -db gene_ontology.obo > organism.go_summary
 
 =head1 SYNOPSIS
-
-This script will take a datafile of GO terms and map them into GO slim terms for a defined GO slim to effectively reduce the complexity of the terms in the file.
-
-It currently expects the simple GeneSetEnrichment table format of
 
   GO:12345\tIEA\tGENE_NAME
 
@@ -34,12 +30,10 @@ use Getopt::Long;
 use GO::Parser;
 
 my $godbfile = '/srv/projects/db/GO/current/gene_ontology.obo';
-my $GOslim_set = 'goslim_yeast';
 my $input;
 GetOptions
     ('go|db|godb:s' => \$godbfile,
      'i|input:s'    => \$input,
-     'slim:s'       => \$GOslim_set,
      'h|help'      => sub { 
 	 exec('perldoc',$0);
 	 exit;
@@ -77,4 +71,5 @@ for my $term ( sort { $gather{$b} <=> $gather{$a} }
     my $gene_count = scalar keys %{$gather{$term}};
     print join("\t", $term, $lookup{$term}, $gene_count, 
 	       sprintf("%.2f",100 * ($gene_count / $total_gene_count))), "\n";
+
 }
