@@ -29,10 +29,9 @@ for my $subdir ( readdir(DIR) ) {
     my (@ALL,$outfh,@seqs);
     for my $file ( readdir(SUBDIR)) {
 	next unless $file =~ /(\S+)\.gb[sk]$/;
-
+	warn("$file\n");
 	my ($species,$pref) = &get_species_gbkfile("$dir/$subdir/$file");
 	if( $first ) {
-
 	    mkdir("$odir/$species") unless -d "$odir/$species";
 	    next if( -f "$odir/$species/$species.gff3" && 
 		     ! -z "$odir/$species/$species.gff3");
