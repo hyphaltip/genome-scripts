@@ -21,11 +21,13 @@ my $pfamdir;
 my $pfamext = 'tab';
 my $hmmerversion = 3;
 my $evalue_cutoff = 0.001;
+my $fix_altsplicing = 0;
 GetOptions(
 	   'd|p|pfam:s'  => \$pfamdir,
 	   'ext:s'     => \$pfamext,
 	   'hmmer|hv:s'=> \$hmmerversion,
 	   'e|evalue:s' => \$evalue_cutoff,
+           'fixalt|altsplice!' => \$fix_altsplicing,
 	   );
 
 die "must provide a folder with pfam table data (either domtblout or hmmer2table output\n" unless $pfamdir && -d $pfamdir;
@@ -60,17 +62,25 @@ for my $file ( readdir(PFAM) ) {
 
 my %sp;
 my @data;
+my %seen_genes;
 while(<>) {
     my ($group,@orthologs) = split;
     $group =~ s/://;
     my %count;
     my %domains;	
     for my $gene ( @orthologs ) {
-	my ($sp)= split(/\|/,$gene);
-	$count{$sp}++;
-	$sp{$sp} = 1; # collecting all the species names
-	while( my ($dom,$count) = each %{$pfam{$gene} || {}} ) {
-	    $domains{$dom} += $count;
+	
+	my ($sp,$locus)= split(/\|/,$gene);
+	if( $fix_altsplicing ) {
+	    $locus =~ s/T\d+$//;
+	    $locus =~ s/\-[A-Z]$//;
+	}
+	if( ! $seen_genes{$locus}++ ) {
+	    $count{$sp}++;
+	    $sp{$sp} = 1; # collecting all the species names
+	    while( my ($dom,$count) = each %{$pfam{$gene} || {}} ) {
+		$domains{$dom} += $count;
+	    }
 	}
     }    
     push @data,[ $group, \%count, \%domains];
