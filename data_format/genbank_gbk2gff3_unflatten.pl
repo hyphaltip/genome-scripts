@@ -12,12 +12,21 @@ use constant MRNA => 'mRNA';
 use constant GENE => 'gene';
 use constant CDS  => 'cds';
 use constant EXON  => 'exon';
-use constant MIN_LENGTH => 10_000;
+use constant MIN_LENGTH => 1_000;
 
+my $write_fasta_separate = 1;
 my $SRC = "genbank";
 
 my $dir = "raw/genbank";
 my $odir = 'genomes';
+
+GetOptions(
+    'fasta!' => $write_fasta_separate,
+    'd|dir:s' => \$dir,
+    'o|out:s' => \$odir,
+    's|src:s' => \$SRC,
+    );
+
 opendir(DIR, $dir) || die $!;
 
 
@@ -26,7 +35,7 @@ for my $subdir ( readdir(DIR) ) {
     opendir(SUBDIR,"$dir/$subdir");
     my $cdsnum = 1;
     my $first = 1;
-    my (@ALL,$outfh,@seqs);
+    my (@ALL,$outfh,$outfa,@seqs);
     for my $file ( readdir(SUBDIR)) {
 	next unless $file =~ /(\S+)\.gb[sk]$/;
 	warn("$file\n");
@@ -39,6 +48,10 @@ for my $subdir ( readdir(DIR) ) {
 	    
 	    warn("species is $species\n");
 	    open($outfh, ">$odir/$species/$species.gff3") || die $!;
+	    if( $write_fasta_separate ) {
+		$outfa = Bio::SeqIO->new(-format => 'fasta', 
+					 -file =>">$odir/$species/$species.fasta");
+	    }
 	    print $outfh "##gff-version 3\n";
 	    print $outfh "#date ". localtime(time)."\n";
 	}
@@ -51,7 +64,7 @@ for my $subdir ( readdir(DIR) ) {
 
 	while( my $seq = $seqio->next_seq ) {
 	    my $desc = $seq->description;
-	    if( $desc =~ /(?:chromosome|contig)\s+([\w\d\.]+)/) {
+	    if( $desc =~ /(?:chromosome|contig|scaffold)\s+([\w\d\.]+)/) {
 		$seq->display_id("$pref\_$1");
 	    }
 
@@ -61,7 +74,7 @@ for my $subdir ( readdir(DIR) ) {
 		next;
 	    }
 	    warn("desc is $desc id is ", $seq->display_id,"\n");
-	    # push @seqs, $seq;
+	    push @seqs, $seq;
 	    print $outfh  join("\t",
 			       $seq->display_id,
 			       'chromosome',
@@ -277,11 +290,13 @@ for my $subdir ( readdir(DIR) ) {
 	}
 	print $outfh join("\t", @$feature, join(";", @lastcol_n)),"\n";
     }
-    #if( $outfh && @ALL && @seqs) {
-#	my $out = Bio::SeqIO->new(-format => 'fasta',
-#				  -fh     => $outfh);
-#	$out->write_seq(@seqs);
-#    }
+    if( $write_fasta_separate && $outfa ) {
+	$outfa->write_seq(@seqs);
+    } elsif( $outfh && @ALL && @seqs) {
+	my $out = Bio::SeqIO->new(-format => 'fasta',
+				  -fh     => $outfh);
+	$out->write_seq(@seqs);
+    }
 }
 $unflattener->report_problems;
 sub get_species_gbkfile {
