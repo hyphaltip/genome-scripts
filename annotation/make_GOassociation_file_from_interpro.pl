@@ -36,12 +36,12 @@ GetOptions('ctr:s'       => \$centerPrefix,
 if( $species ) {
     $taxon = $taxdb->get_taxonid($species);
 }
-if( ! $taxon ) {
-    warn("need a taxonid, either provide it with --taxonid or give a --species='genus species' [strain] (add strain if specified in genbank)");
-    exit;
-}
 unless($interprotab ) {
     $interprotab = shift @ARGV if @ARGV;
+}
+if( ! $taxon ) {
+    warn("need a taxonid, either provide it with --taxonid or give a --species='genus species' [strain] (add strain if specified in genbank) [$interprotab]");
+    exit;
 }
 
 unless($interprotab && -f $interprotab ) {
@@ -57,7 +57,6 @@ my $parser = GO::Parser->new({handler => 'obj',use_cache=>1});
 #$parser->handler->file("output.xml");
 $parser->parse($gofile);
 my $go_graph = $parser->handler->graph;
-warn("done parsing\n");
 
 
 my ($stem,$fh);
