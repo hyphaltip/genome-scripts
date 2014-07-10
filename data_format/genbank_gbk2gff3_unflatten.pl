@@ -64,7 +64,7 @@ for my $subdir ( readdir(DIR) ) {
 
 	while( my $seq = $seqio->next_seq ) {
 	    my $desc = $seq->description;
-	    if( $desc =~ /(?:chromosome|contig|scaffold)\s+([\w\d\.]+)/) {
+	    if( $desc =~ /(?:chromosome|contig|scaffold|linkage group)\s+([\w\d\.]+)/) {
 		$seq->display_id("$pref\_$1");
 	    }
 
