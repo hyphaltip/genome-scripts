@@ -38,6 +38,7 @@ if( $features ) {
     }
 }
 open(my $R => ">$dir/summary_shortread_barplot.R" ) || die $!;
+print $R 'colors=c(\"red\",\"blue\",\"green\",\"orange\")',"\n";
 for my $file ( @ARGV ) {
     my $base = $file;
     $base =~ s/\.bam$//;
@@ -103,7 +104,7 @@ for my $file ( @ARGV ) {
 	open(my $rptpct => ">$dir/$base.$readend\_summary_sizes.percent" ) || die $!;
 	print $R "size <- read.table(\"$base.$readend\_summary_sizes\",header=T,sep=\"\\t\",row.names=1)\n";
 	print $R "barplot(t(size),xlab=\"Read Length\", ylab=\"Total # Reads\", main=\"Reads mapped by size - $readend' base\",",
-	"legend=T,col=c(\"red\",\"blue\",\"green\",\"orange\"),beside=T)\n";
+	"legend=T,col=colors,beside=F)\n";
 	print $R "sizep <- read.table(\"$base.$readend\_summary_sizes.percent\",header=T,sep=\"\\t\",row.names=1)\n";
 
 # add in total percentage plots
