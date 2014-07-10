@@ -16,5 +16,5 @@ mkdir alignments
 makeAlignmentInput --map=better.map . alignments
 mavidAlignDirs --init-dir=alignments
 
-mkdir fsa_alignments
-makeAlignmentInput --map=better.map . fsa_alignments
+#mkdir fsa_alignments
+#makeAlignmentInput --map=better.map . fsa_alignments
