@@ -46,7 +46,7 @@ my $show_aln = 0;
 GetOptions(
 	   'a|showaln!'          => \$show_aln,
 	   't|type:s'            => \$type,
-	   'gff_version|gf|v|:s' => \$gff_ver,
+	   'gff_version|gf|v:s' => \$gff_ver,
            'h|help'              => sub { exec('perldoc', $0); exit }
 	   );
 my $out = Bio::Tools::GFF->new(-gff_version => $gff_ver);
@@ -61,6 +61,7 @@ while(<>) {
 	    if ( s/^vulgar:\s+//) {
 		$lastvulgar = $vulgar;
 		chomp($vulgar = $_);
+	        chomp($lastvulgar);
 	    }
 	    my $in = Bio::Tools::GFF->new
 		(-gff_version => 2,
@@ -89,16 +90,12 @@ while(<>) {
 			$f->remove_tag($t) if $f->has_tag($t); 
 		    }
 		    $gene_name = $gene;
-		    if(  $gene_name =~ /^cneo_TIGR:/ ) {
-			$gene_name =~ s/\-\d+$//;
-			$vulgar =~ s/cneo_TIGR:(\S+)\-\d+/cneo_TIGR:$1/;
-
-		    }
 		    if( $counter{$gene_name}++ ) {
 			$gene_name .= ".$counter{$gene_name}";
 		    }
 
 		    $f->add_tag_value('ID',"$type:$gene_name");
+		    chomp($lastvulgar);
 		    $f->add_tag_value('vulgar', $lastvulgar);
 		} elsif( $f->primary_tag eq 'similarity') {
 		    next unless $show_aln;
