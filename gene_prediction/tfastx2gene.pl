@@ -18,14 +18,14 @@ my $maxintron = 800;
 my $informat = 'tfastx'; # wublast mformat 3 is default
 my $method = 'exonerate';
 my %protein2genome = ('exonerate' =>
-		      'exonerate -m p2g --bestn 1 --joinfilter 1 --verbose 0 --maxintron 3000 --minintron 20 -q %s -t %s --ryo ">%%qi__%%ti (%%tab - %%tae) score=%%s rank=%%r\n%%tcs\n" --showcigar no --showvulgar no --showalignment no --refine region',
+		      '/opt/linux/centos/7.x/x86_64/pkgs/exonerate/2.4.0/bin/exonerate -m p2g --bestn 1 --joinfilter 1 --verbose 0 --maxintron 3000 --minintron 20 -q %s -t %s --ryo ">%%qi__%%ti (%%tab - %%tae) score=%%s rank=%%r\n%%tcs\n" --showcigar no --showvulgar no --showalignment no --refine region',
 #--model protein2genome --bestn 1 --refine region  --showvulgar yes --softmaskquery yes --softmasktarget yes --minintron %d -q %s -t %s --maxintron 3000 --ryo ">%%qi length=%%ql alnlen=%%qal\n>%%ti length=%%tl alnlen=%%tal\n" --showalignment no --showtargetgff | perl /rhome/jstajich/src/genome-scripts/data_format/process_exonerate_gff3.pl --type Protein',
 
 		      'genewise' => 'genewise -silent -quiet -para -genesf %s -u %d -v %d %s %s',
 		      
 		      );
 
-my $tmpdir = "/tmp/protein2genome.$USER$$";
+my $tmpdir = "/scratch/protein2genome.$USER.$$";
 my ($genome,$pepfile);
 my $window = 1500;  # window around target region
 my $gffver = 3;
@@ -73,7 +73,7 @@ for my $file ( @ARGV) {
     if( $file =~ /\.(gz|bz2)$/ ) {
 	open( $fh => "$compress{$1} $file |") || die $!;
     } else {
-	open( $fh => $file) || die $!;
+	open( $fh => $file) || die "cannot open $file: $!";
     }
     if( lc($informat) eq 'wutab') {
 	my %lastseen;
@@ -163,6 +163,9 @@ for my $file ( @ARGV) {
     }
 }
 
+END {
+ system("rm -rf $tmpdir");
+}
 
 sub make_pair {
     my ($q,$h,$hsps) = @_;
@@ -211,7 +214,7 @@ sub make_pair {
 					       -seq => $gdb->seq($h,$min,$max));
 	}
 	my $pepid = $protein->id;
-	if( ! $pepid ) {
+	if( ! defined $pepid ) {
 	 die " cannot find a pepid in seq for $q\n";
 	}
 	$pepid =~ s/\|/_/g;
