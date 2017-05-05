@@ -53,8 +53,8 @@ print join(" ", @keep_loci), "\n";
 for my $ind ( @names ) {    
     my $pop = $sample2pop{$ind} || 0;    
 # FIX ME HERE
-    print join(" ", $ind, $pop, map { $inds{$ind}->{$_} } @keep_loci),"\n";    
-    print join(" ", $ind, $pop, map { $inds{$ind}->{$_} } @keep_loci),"\n";    
+    print join(" ", $ind, $pop, map { @{$inds{$ind}->{$_}} } @keep_loci),"\n";    
+    #print join(" ", $ind, $pop, map { $inds{$ind}->{$_} } @keep_loci),"\n";    
 }
 
 sub randsample {
