@@ -15,6 +15,9 @@ pfamcopy_compare.pl pfam_outputdir
 
 =head1 DESCRIPTION
 
+1. hmmpfam (v3) to table of counts per species
+2. If seqs provided will make a file for each domain with seq domain cut out
+
 =head1 AUTHOR
 
 Jason Stajich E<lt>jason.stajich[at]ucr.eduE<gt>
@@ -56,7 +59,9 @@ for my $file ( readdir(DIR) ) {
 		$env_start, $env_end,
 		$accuracy, 
 		$description) = split(/\s+/,$_,24);
+
 	    next if $i_evalue > $cutoff;
+
 	    if( $percent ) {
 		$domains{$domain}->{$sp}->{$gene}++;
 	    } else {
@@ -64,7 +69,7 @@ for my $file ( readdir(DIR) ) {
 	    }
 
 	    $genes{$sp}->{$gene}++;
-	    push @{$domain_seqs{$domain}}, $gene if $dbh;
+	    push @{$domain_seqs{$domain}}, [$gene,$env_start,$env_end] if $dbh;
 	}
     }
 }
@@ -97,10 +102,18 @@ for my $dom ( @dom_order ) {
 	my $out = Bio::SeqIO->new(-format => 'fasta',
 				  -file   => ">$pfam_seqs_out/$domname.fa");
 	my %seen;
-	for my $id ( @{$domain_seqs{$domname}} ) {
-	    next if $seen{$id}++;
-	    if( my $seq = $dbh->get_Seq_by_acc($id) ) {
-		$out->write_seq($seq);
+	for my $dat ( sort { $a->[0] cmp $b->[0] ||
+				 $a->[1] <=> $b->[1] ||
+				 $a->[2] <=> $b->[2] } 
+		      @{$domain_seqs{$domname}} ) {
+	    my ($id,$start,$end) = @$dat;	    
+	    my $domain_n = ++$seen{$id};
+	    if( my $seq = $dbh->seq($id, $start => $end) ) { 
+		my $domainseq = Bio::PrimarySeq->new
+		    (-seq => $seq, 
+		     -id  => sprintf("%s_D%02d",$id,$domain_n),
+		     -desc => sprintf("%s %d..%d",$id, $start,$end));
+		$out->write_seq($domainseq);
 	    } else {
 		warn("cannot find $id in the DB\n");
 	    }
@@ -111,7 +124,7 @@ for my $dom ( @dom_order ) {
 		   map {my $ct = scalar keys %{$domains{$dom->[0]}->{$_} || {}};
 			sprintf("%.2f", 100 * ($ct / $spgenes{$_}));
 		   } @sp), "\n";
- 
+
     } else {
 	print join("\t", $dom->[0], $dom->[1],
 		   map { $domains{$dom->[0]}->{$_} || 0 } @sp), "\n";    
