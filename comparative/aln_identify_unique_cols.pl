@@ -18,8 +18,9 @@ uniqueness of the base for each column, given a target sequence prefix/id
 Typical usage is where sequences in alignments are prefixed with a
 species name, e.g. Scer|YAL001 - the prefix provided would be Scer
 
+To see codon based info specify a window size of 3 with --window 3 or -w 3
 
-perl aln_identify_unique_cols.pl -p PREFIX -f fasta alignment.aln
+perl aln_identify_unique_cols.pl -p PREFIX -f fasta [ -w 1 ] alignment.aln 
 
 =head1 AUTHOR
 
@@ -29,8 +30,11 @@ Jason Stajich jasonstajich.phd[at]gmail.com
 
 my $prefix;
 my $format = 'fasta';
+my $window = 1;
 GetOptions('ref|p|prefix:s' => \$prefix,
 	   'f|format:s'     => \$format,
+	   'w|window:s'     => \$window,
+	   'codons'        => sub { $window = 3 },
     );
 
 
@@ -47,24 +51,30 @@ while(my $aln = $alnio->next_aln ) {
     my @matrix;
     my $ref_pos = -1;
     my $seqn = 0;
+    my $aln_len = $aln->length;
+    my @ids;
     for my $seq ( $aln->each_seq ) {
 	my ($pref,$id) = split(/\|/,$seq->display_id);
+	push @ids, $pref;
 	if( $pref eq $prefix ) {
 	    warn("found target seq $pref -> $id\n");
 	    $ref_pos = $seqn;
 	}
 	my $col = 0;
-	for my $c ( split('',$seq->seq) ) { 
-	    $matrix[$col++] .= uc $c;
+	my $seqstr = $seq->seq;
+	for( my $col = 0; $col < $aln_len; $col += $window) {
+	    my $c = substr($seqstr,$col,$window);
+	    $matrix[$col]->[$seqn] = uc $c;
 	}
 	$seqn++;
     }
-    my $i =0 ;
-    
-    for my $row ( @matrix ) {
-
+    my $length = scalar @matrix;
+    print "Sequence ID order was :\n", join(",", @ids), "\n";
+    for(my $i = 0; $i < $length; $i += $window) {	
+	my $row = $matrix[$i];
+	
 	my %let_freq;
-	for my $bp ( split('',$row) ) {
+	for my $bp ( @$row ) {
 	    $let_freq{$bp}++;
 	}
 	my $info = '';
@@ -72,13 +82,13 @@ while(my $aln = $alnio->next_aln ) {
 	if( scalar @freq == 1 ) {
 	    $info = 'Invariant';
 	} elsif ( scalar @freq == 2 ) {
-	    my $ref_base = substr($row,$ref_pos,1);
+	    my $ref_base = $row->[$ref_pos];
 	    if( $let_freq{$ref_base} == 1 ) {
 		# only 2 bases, and ref base is different
 		$info = sprintf("Target (%s) is Uniquely Different",$prefix);
 	    }
 	}
 		
-	printf "%-4d => %s %s\n",$i++,$row, $info;	   
+	printf "%-4d => %s %s\n",$i,join(" ", @$row), $info;	   
     }
 }
