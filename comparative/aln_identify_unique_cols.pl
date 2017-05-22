@@ -55,7 +55,7 @@ while(my $aln = $alnio->next_aln ) {
 	}
 	my $col = 0;
 	for my $c ( split('',$seq->seq) ) { 
-	    $matrix[$col++] .= $c;
+	    $matrix[$col++] .= uc $c;
 	}
 	$seqn++;
     }
