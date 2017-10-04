@@ -12,6 +12,8 @@ my $missing_data = -9;
 my $rand_sample = 5000;
 my $sample2popfile;
 
+warn("USE plink instead and faststrutucture. This should be deprecated");
+
 GetOptions(
     'p|pop:s'   => \$sample2popfile,
     'rs|rand:i' => \$rand_sample,
