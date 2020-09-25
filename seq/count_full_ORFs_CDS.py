@@ -14,8 +14,9 @@ full_length_ORF = 0
 total_ORFs = 0
 
 for record in SeqIO.parse(args.infile, args.format):
-    firstcodon = record[0:3].translate().seq
-    lastcodon  = record[-3:].translate().seq
+    pep = record.translate().seq
+    firstcodon = pep[0:1]
+    lastcodon  = pep[-1:]
     total_ORFs += 1
     if firstcodon == "M" and lastcodon == "*":
         full_length_ORF += 1
